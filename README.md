@@ -13,7 +13,7 @@
 <br/>
 
 <p align="center">
-  <img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-Agent_SDK-d97757?style=for-the-badge&labelColor=3b2219&logo=anthropic&logoColor=d97757"> &nbsp;<img alt="Codex" src="https://img.shields.io/badge/Codex-app--server-f5f5f5?style=for-the-badge&labelColor=111111&logo=openai&logoColor=ffffff"> &nbsp;<img alt="Antigravity" src="https://img.shields.io/badge/Antigravity-agy-4c8df6?style=for-the-badge&labelColor=17264a&logo=google&logoColor=4c8df6">
+  <img alt="Claude Code" src="https://img.shields.io/badge/Claude_Code-Agent_SDK-d97757?style=for-the-badge&labelColor=3b2219&logo=anthropic&logoColor=d97757"> &nbsp;<img alt="Codex" src="https://img.shields.io/badge/Codex-app--server-f5f5f5?style=for-the-badge&labelColor=111111&logo=gnubash&logoColor=ffffff"> &nbsp;<img alt="Antigravity" src="https://img.shields.io/badge/Antigravity-agy-4c8df6?style=for-the-badge&labelColor=17264a&logo=google&logoColor=4c8df6">
 </p>
 <p align="center">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-Ink_8-3178c6?style=for-the-badge&labelColor=0f2a4a&logo=typescript&logoColor=ffffff"> &nbsp;<img alt="macOS" src="https://img.shields.io/badge/macOS-Terminal-333333?style=for-the-badge&labelColor=111111&logo=apple&logoColor=ffffff"> &nbsp;<a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-15803d?style=for-the-badge&labelColor=14532d"></a>
