@@ -18,7 +18,7 @@ import os from "node:os";
 import { monoFonts, currentFont, setFont, canChangeFont } from "./font.js";
 import { Dictation } from "./voice.js";
 import { toPct, toMs, type Limits } from "./Usage.js";
-import { useTheme, useThemeApi, paint, THEMES , bc, ruleOf } from "./theme.js";
+import { useTheme, useThemeApi, paint, THEMES , bc, ruleOf, mix } from "./theme.js";
 import { useKeys, ACTIONS, RESERVED, describe, pretty, type Action } from "./keys.js";
 
 const MODE_LABEL: Record<PermissionMode, { text: string; color: string }> = {
@@ -360,7 +360,11 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
       const rows = list.map((sv) => ({
         id: sv.name,
         label: sv.name,
-        detail: sv.status + (sv.tools?.length ? ` · ${sv.tools.length} tools` : "") + (sv.error ? ` · ${sv.error}` : ""),
+        // claude-tui can't open a server's sign-in page (the Agent SDK has no MCP OAuth
+        // flow); signing in once in Claude Code's own /mcp is shared with claude-tui.
+        detail: sv.status === "needs-auth"
+          ? "needs sign-in: run claude-code, /mcp, pick it, Authenticate; then ⏎ here"
+          : sv.status + (sv.tools?.length ? ` · ${sv.tools.length} tools` : "") + (sv.error ? ` · ${sv.error}` : ""),
         color: MCP_COLOR[sv.status] ?? t.gray,
       }));
       setMenu((m) => (m && m.kind === "mcp" ? { ...m, rows, cursor: Math.min(m.cursor, Math.max(0, rows.length - 1)), note } : m));
@@ -533,7 +537,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
     if (text === "/theme") return openThemeMenu();
     if (text === "/keys") return openKeysMenu();
     if (text === "/font") return openFontMenu();
-    push(item("user", text));
+    push({ ...item("user", text), at: Date.now() });
     if (title === "New session") onTitle(text.replace(/\s+/g, " ").slice(0, 80));
     setScrollUp(0);
     setBusy(true);
@@ -750,14 +754,34 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
           }
           const it = b.item;
           const gap = it.kind === "user" && i > 0 ? 1 : it.kind === "text" ? 1 : 0;
+          if (it.kind === "user") {
+            // Prompts are blocks you can spot in a long transcript: a tinted band with a
+            // bar in the pane's color, "You · time" on top. Messages a workflow sent
+            // ("[workflow] …") get their own label and a neutral bar.
+            const wf = it.text.startsWith("[workflow]");
+            const body = wf ? it.text.replace(/^\[workflow\]\s*/, "") : it.text;
+            const from = wf ? body.match(/^Handoff from (\w+):/)?.[1] : undefined;
+            const shown = from ? body.replace(/^Handoff from \w+:\s*/, "") : body;
+            const bar = wf ? t.gray : accent;
+            const hex = (c?: string) => !!c && /^#[0-9a-f]{6}$/i.test(c);
+            const band = hex(t.bg) && hex(bar) ? mix(t.bg!, bar, wf ? 0.08 : 0.14) : t.card;
+            const label = wf ? `⇄ ${from ? "From " + from[0].toUpperCase() + from.slice(1) : "Workflow"}` : "You";
+            // A reply right after brings its own blank line; tool lines don't.
+            const next = all[i + 1];
+            const nextIsText = !!next && next.kind !== "tools" && next.item.kind === "text";
+            const time = it.at ? new Date(it.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+            return (
+              <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={nextIsText ? 0 : 1} width={inner} flexDirection="row" backgroundColor={band}>
+                <Box width={1} flexShrink={0} flexDirection="column" backgroundColor={bar} />
+                <Box flexDirection="column" flexGrow={1} paddingX={1} backgroundColor={band}>
+                  <Text bold color={bar === t.gray ? t.gray : accent}>{label}{time && <Text color={t.gray} bold={false}>{"  ·  " + time}</Text>}</Text>
+                  <Text bold color={t.white}>{shown}</Text>
+                </Box>
+              </Box>
+            );
+          }
           return (
             <Box key={it.id} flexShrink={0} marginTop={gap}>
-              {it.kind === "user" && (
-                <>
-                  <Text color={accent}>▌ </Text>
-                  <Box width={inner - 2}><Text bold color={t.white}>{it.text}</Text></Box>
-                </>
-              )}
               {it.kind === "text" && (
                 <Box flexDirection="column" width={inner}>
                   <Text color={t.white}>{renderMarkdown(it.text, inner, t)}</Text>

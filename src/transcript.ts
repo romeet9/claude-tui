@@ -12,6 +12,8 @@ export type Item = {
   toolInput?: Record<string, any>;
   /** Tool results: more of the output than the one-line summary. */
   full?: string;
+  /** Prompts: when it was sent (absent for a resumed session's history). */
+  at?: number;
 };
 
 /**
