@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { render, Box, useApp, useInput, useWindowSize } from "ink";
 import fs from "node:fs";
 import { Chat } from "./Chat.js";
+import { setTerminalBackground, restoreTerminalBackground } from "./font.js";
 import { PausedPane } from "./PausedPane.js";
 import { AgentPicker, PICKER_FIRST_ROW, PICKER_ROW_STEP } from "./AgentPicker.js";
 import { AGENTS, agentInfo, type AgentKind } from "./backends/types.js";
@@ -86,6 +87,7 @@ const WORKFLOW = WF_NAME ? await loadWorkflow(WF_NAME).catch((e) => {
 /** A workflow brings its own panes, so the saved layout is neither read nor written. */
 const SAVED: SavedLayout | null = ARGS.fresh || WORKFLOW ? null : loadLayout();
 process.on("exit", flushLayout);
+process.on("exit", restoreTerminalBackground);
 type Field = { purpose: "create" | "link"; label: string; value: string };
 
 const SIDEBAR_WIDTH = 34;
@@ -95,6 +97,10 @@ function App() {
   const { columns, rows: height } = useWindowSize();
 
   const [theme, setThemeState] = useState(() => themeById(savedThemeId(process.argv)));
+  // The terminal's own background (its padding, the edges) follows the theme's.
+  useEffect(() => {
+    setTerminalBackground(theme.bg ?? null);
+  }, [theme.bg]);
   const themeApi = useMemo<ThemeApi>(() => ({
     theme,
     setTheme: (id, persist = true) => {

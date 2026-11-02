@@ -83,3 +83,43 @@ out.join("\\n")`;
   if (!cache.some((f) => f.postscript.startsWith("SFMono"))) cache.unshift({ family: "SF Mono", postscript: "SFMonoTerminal-Regular" });
   return cache;
 }
+
+// ---------- terminal background follows the theme ----------
+// The theme paints everything claude-tui draws, but the terminal's own background
+// still shows in its padding and the last column/row. So the tab's background is set
+// to the theme's (Terminal.app: only this tab, through AppleScript; other terminals:
+// OSC 11), and put back when claude-tui quits.
+let originalTabBg: string | null = null;
+let changed = false;
+
+const toApple = (hex: string) => {
+  const n = hex.replace("#", "");
+  return `{${[0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16) * 257).join(", ")}}`;
+};
+
+/** Sets the terminal's background to `hex`, or restores the original with null. */
+export function setTerminalBackground(hex: string | null) {
+  try {
+    if (canChangeFont()) {
+      if (hex) {
+        if (originalTabBg === null) {
+          originalTabBg = execFileSync("osascript", ["-e", tabScript(`set c to background color of t
+        return ((item 1 of c) as string) & "," & ((item 2 of c) as string) & "," & ((item 3 of c) as string)`)]).toString().trim() || "";
+        }
+        execFileSync("osascript", ["-e", tabScript(`set background color of t to ${toApple(hex)}`)]);
+        changed = true;
+      } else if (changed && originalTabBg) {
+        execFileSync("osascript", ["-e", tabScript(`set background color of t to {${originalTabBg}}`)]);
+        changed = false;
+      }
+    } else if (process.stdout.isTTY) {
+      process.stdout.write(hex ? `\x1b]11;${hex}\x07` : "\x1b]111\x07");
+      changed = !!hex;
+    }
+  } catch {}
+}
+
+/** On quit: the terminal gets its own background back. */
+export function restoreTerminalBackground() {
+  if (changed) setTerminalBackground(null);
+}
