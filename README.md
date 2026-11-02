@@ -43,21 +43,70 @@
 
 ## 📥 Install
 
-One line, on an Apple Silicon Mac. No Node or npm needed: the release carries its own runtime and the Claude engine.
+### Before you start
+
+- **A Mac with Apple Silicon** (M1 or later). On an Intel Mac, use [From source](#️-from-source) instead.
+- **Nothing else to install for claude-tui itself.** No Node, no npm: the download carries its own runtime and the Claude engine.
+- **At least one agent you're signed in to.** Claude is the usual starting point (see [step 3](#3-sign-in-to-the-agents-you-want)).
+
+### 1. Run the installer
+
+Open **Terminal** and paste:
 
 ```bash
 curl -fsSL https://github.com/romeet9/claude-tui/releases/latest/download/install.sh | bash
 ```
 
-Then run `claude-tui` in any project folder, or `claude-tui demo` for a tour with made-up data.
-It installs to `~/.claude-tui` and links `~/.local/bin/claude-tui`; to uninstall, delete both.
+It downloads the latest release, checks its checksum, puts it in `~/.claude-tui` and adds the `claude-tui` command to `~/.local/bin`. At the end it lists which agents it found.
 
-| To use | You need |
+### 2. Open a new Terminal tab
+
+If the installer says it **added `~/.local/bin` to your PATH**, open a new tab (<kbd>⌘</kbd> <kbd>T</kbd>) so the `claude-tui` command is found. Check it:
+
+```bash
+claude-tui --version
+```
+
+### 3. Sign in to the agents you want
+
+| To use | Do this once |
 | --- | --- |
-| Claude | Nothing extra; sign in once with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (or set `ANTHROPIC_API_KEY`) |
-| Codex | The [Codex CLI](https://github.com/openai/codex), signed in (`codex login`) |
-| Antigravity | The Antigravity CLI (`agy`), signed in |
-| GitHub panel | The [GitHub CLI](https://cli.github.com) (`gh auth login`) |
+| **Claude** | Built in. Sign in with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (`claude`, then `/login`), or set `ANTHROPIC_API_KEY` |
+| **Codex** | Install the [Codex CLI](https://github.com/openai/codex) (`brew install codex`), then `codex login` |
+| **Antigravity** | Install the Antigravity CLI (`agy`) and sign in |
+| **GitHub panel** (optional) | Install the [GitHub CLI](https://cli.github.com) (`brew install gh`), then `gh auth login` |
+
+You only need the ones you'll use. Panes for an agent you haven't set up show an error instead of crashing.
+
+### 4. Run it
+
+```bash
+cd ~/path/to/your/project
+claude-tui
+```
+
+Want to look around first? `claude-tui demo` opens a tour with made-up projects and replies; it needs no accounts.
+
+### Update
+
+Run the same install command again. It replaces the old version and keeps your settings (`~/.config/claude-tui`).
+
+### Uninstall
+
+```bash
+rm -rf ~/.claude-tui ~/.local/bin/claude-tui
+rm -rf ~/.config/claude-tui     # optional: your themes, keys and saved layout
+```
+
+### Troubleshooting
+
+| Problem | Fix |
+| --- | --- |
+| `command not found: claude-tui` | Open a new Terminal tab, or run `export PATH="$HOME/.local/bin:$PATH"` |
+| "This release is for Apple Silicon Macs" | You're on an Intel Mac: install [from source](#️-from-source) |
+| Claude pane says you're not logged in | Run `claude` once and sign in, or set `ANTHROPIC_API_KEY` |
+| Codex / Antigravity pane fails to start | Make sure `codex` / `agy` runs in a normal terminal and is signed in |
+| The layout looks wrong after an update | `claude-tui --fresh` starts with a clean layout |
 
 ## 🛠️ From source
 
@@ -93,7 +142,7 @@ Try it without any agents or accounts: `npm run demo` opens the UI with made-up 
 | <kbd>Ctrl</kbd> <kbd>T</kbd> / <kbd>Ctrl</kbd> <kbd>G</kbd> | GitHub / browser panel |
 | <kbd>Ctrl</kbd> <kbd>E</kbd> | Show every tool call instead of one summary line |
 | <kbd>Ctrl</kbd> <kbd>V</kbd> | Voice typing |
-| <kbd>/</kbd> | Commands: `/theme` `/model` `/mcp` `/keys` `/font` `/new` |
+| <kbd>/</kbd> | Commands: `/theme` `/model` `/mcp` `/keys` `/font` `/copy` `/new` |
 
 Every shortcut can be changed with `/keys`.
 
@@ -126,7 +175,7 @@ Every shortcut can be changed with `/keys`.
 
 ```bash
 scripts/build-release.sh    # release/claude-tui-<version>-macos-arm64.tar.gz + install.sh
-gh release create v1.0.0 release/*
+gh release create v<version> release/*   # bump the version in package.json first
 ```
 
 The build bundles the app with esbuild, adds the official Node runtime (checksum-verified) and the prebuilt voice helper.
