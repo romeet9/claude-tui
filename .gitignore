@@ -1,0 +1,9 @@
+node_modules/
+# Compiled on first use from voice/main.swift
+voice/claude-tui-voice
+# Personal workspace files (Claude Workspaces memory, local settings)
+context.md
+CLAUDE.md
+.claude/
+.context-history/
+.DS_Store
