@@ -122,6 +122,9 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
   }, [prefill?.n]);
   const [live, setLive] = useState("");
   const [input, setInput] = useState("");
+  /** The input as of the last render, for key chunks handled before the next one. */
+  const inputRef = useRef("");
+  inputRef.current = input;
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<PermissionMode>(() => initialMode(cwd, process.argv));
   const [model, setModel] = useState("");
@@ -609,6 +612,13 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
       if (key.ctrl && ch === "u") return setInput("");
       if (ch && !key.ctrl && !key.meta && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow) {
         setSugCursor(0);
+        // While the screen is busy, the last typed letters and Enter can arrive as one
+        // chunk ("sky?\r"). A single trailing Enter means "send", not a pasted newline.
+        if (/^[^\r\n]+\r$/.test(ch)) {
+          const text = inputRef.current + tidy(ch.slice(0, -1));
+          inputRef.current = "";
+          return submit(text);
+        }
         setInput((s) => s + tidy(ch).replace(/\r\n?/g, "\n"));
       }
     },

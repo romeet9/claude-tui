@@ -55,12 +55,16 @@ type Step =
 
 const MODELS: Record<AgentKind, string> = { claude: "claude-opus-5-5", codex: "gpt-6.1-sol", agy: "gemini-3.8-flash" };
 
+// Long enough, and paced slowly enough, that three panes visibly work at the same time.
 const SCRIPTS: Record<AgentKind, Step[][]> = {
   claude: [[
     { text: "I'll check how theming works before touching the settings page." },
     { tool: "Read", input: { file_path: "src/theme/tokens.ts" }, result: "export const tokens = { light: {...}, dark: {...} }" },
     { tool: "Grep", input: { pattern: "prefers-color-scheme" }, result: "src/theme/useTheme.ts:14" },
+    { tool: "Read", input: { file_path: "src/pages/Settings.tsx" }, result: "<Section title=\"Appearance\">" },
+    { text: "The tokens already have a dark set and `useTheme` reads the system setting, so this is a switch plus a saved preference." },
     { tool: "Edit", input: { file_path: "src/pages/Settings.tsx" }, result: "Updated src/pages/Settings.tsx (+24 −2)", ask: true },
+    { tool: "Edit", input: { file_path: "src/theme/useTheme.ts" }, result: "Updated src/theme/useTheme.ts (+9 −1)" },
     { tool: "Bash", input: { command: "npm test -- settings" }, result: "✓ 12 tests passed" },
     { text: "Added a **Dark mode** switch to Settings → Appearance.\n\n- Follows the system setting until you pick one\n- Saved per user in `localStorage`\n- All 12 settings tests pass" },
   ]],
@@ -68,15 +72,20 @@ const SCRIPTS: Record<AgentKind, Step[][]> = {
     { text: "Running the cart test 20 times to catch the flake." },
     { tool: "Bash", input: { command: "npm test cart -- --repeat 20" }, result: "3 of 20 failed: timeout waiting for #checkout", error: true },
     { tool: "Read", input: { file_path: "tests/cart.spec.ts" }, result: "await page.click('#checkout')" },
+    { tool: "Grep", input: { pattern: "#checkout" }, result: "src/components/Cart.tsx:88" },
+    { text: "The test clicks **Checkout** while the cart total is still loading, and the button is disabled until it arrives." },
     { tool: "Edit", input: { file_path: "tests/cart.spec.ts" }, result: "await expect(checkout).toBeEnabled()" },
     { tool: "Bash", input: { command: "npm test cart -- --repeat 20" }, result: "20 of 20 passed" },
-    { text: "The test clicked **Checkout** before the cart total loaded. It now waits for the button to be enabled: 20/20 runs pass." },
+    { text: "Fixed: the test now waits for the button to be enabled. **20/20** runs pass." },
   ]],
   agy: [[
-    { text: "Auditing the landing page." },
-    { tool: "Bash", input: { command: "npx lighthouse localhost:3000 --quiet" }, result: "Performance 71 · Accessibility 96 · SEO 100" },
+    { text: "Auditing the landing page on mobile." },
+    { tool: "Bash", input: { command: "npx lighthouse localhost:3000 --preset=mobile" }, result: "Performance 71 · Accessibility 96 · SEO 100" },
     { tool: "Read", input: { file_path: "public/hero.png" }, result: "2.4 MB, 3840×2160" },
-    { text: "| Fix | Gain |\n|---|---|\n| Serve hero as AVIF, 1920px | ~2.1 MB |\n| Lazy-load the logo wall | ~180 KB |\n| Preload the display font | LCP −0.4s |" },
+    { tool: "Bash", input: { command: "du -sh public/fonts/*" }, result: "1.1M  public/fonts" },
+    { text: "Most of the weight is the hero image and two font files the page never uses." },
+    { tool: "Read", input: { file_path: "app/layout.tsx" }, result: "<link rel=\"preload\" ...>" },
+    { text: "| Fix | Gain |\n|---|---|\n| Serve hero as AVIF, 1920px | ~2.1 MB |\n| Drop unused font files | ~640 KB |\n| Preload the display font | LCP −0.4s |" },
   ]],
 };
 
@@ -115,7 +124,7 @@ export class DemoSession implements AgentSession {
 
   private async play(script: Step[]) {
     let n = 0;
-    await this.wait(700);
+    await this.wait(900);
     for (const step of script) {
       if (this.stopped) return;
       if ("pause" in step) { await this.wait(step.pause); continue; }
@@ -124,10 +133,10 @@ export class DemoSession implements AgentSession {
         for (const word of step.text.split(/(?<=\s)/)) {
           if (this.stopped) return;
           this.q.push(msg.delta(word));
-          await this.wait(28);
+          await this.wait(45);
         }
         this.q.push(msg.text(step.text));
-        await this.wait(350);
+        await this.wait(450);
         continue;
       }
       const id = `demo-tool-${++n}`;
@@ -137,9 +146,9 @@ export class DemoSession implements AgentSession {
         if (!ok) { this.q.push(msg.info(`✗ declined ${step.tool}`)); continue; }
       }
       this.q.push(msg.toolUse(id, step.tool, step.input));
-      await this.wait(650);
+      await this.wait(1100);
       this.q.push(msg.toolResult(id, step.result, !!step.error));
-      await this.wait(250);
+      await this.wait(300);
     }
     this.q.push(msg.result(true, this.kind === "claude" ? 0.14 * this.turn : 0));
   }

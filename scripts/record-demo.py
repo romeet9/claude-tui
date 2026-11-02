@@ -109,51 +109,56 @@ def type_text(s, cps=22):
     for ch in s:
         send(ch)
         pump(1 / cps)
+    pump(0.15)  # a beat before Enter, like a person
 
 # ---------------------------------------------------------------- script
+# Three agents get a task each, back to back, then all work at the same time.
 pump(3.0)
 until(r"Claude Code", 20)
-pump(1.0)
+pump(0.8)
 
 c, r = find("Acme · Web App")
-click(c + 4, r)                                   # expand the workspace: sessions of all agents
-pump(1.6)
+click(c + 4, r)                                   # the workspace: sessions from all three agents
+pump(1.0)
 
 c, r = find("Claude Code")
-click(c + 5, r - 3)                               # focus the Claude pane
-type_text("Add a dark mode toggle to Settings")
+click(c + 5, r - 3)                               # Claude pane
+type_text("Add a dark mode toggle to Settings", 34)
 send("\r")
-until(r"Allow Edit", 20)
-pump(1.4)
+pump(0.3)
+
+key("\x0e", "⌃N  new pane", 0.6)                  # picker
+key("2", "2  Codex", 0.5)
+type_text("Why is the cart test flaky?", 34)
+send("\r")
+pump(0.3)
+
+key("\x0e", "⌃N  new pane", 0.6)
+key("3", "3  Antigravity", 0.5)
+type_text("Audit the landing page", 34)
+send("\r")
+
+until(r"Allow Edit", 25)                          # Claude stops to ask; the others keep going
+pump(1.8)
+SHOT_AT = time.time() - t0                        # the README screenshot: Claude asking, the others working
+c, r = find(" CLAUDE ")
+click(c + 14, r + 6)
 key("y", "y  allow", 0.6)
-until(r"settings tests pass", 30)
+
+until(r"settings tests pass", 40)
+until(r"20/20", 40)
+until(r"Preload the display font", 40)
 pump(1.6)
-
-key("\x0e", "⌃N  new pane")                      # picker
-c, r = find("CODEX  Codex")
-click(c + 2, r)
-pump(0.8)
-type_text("Why is the cart test flaky?")
-send("\r")
-pump(0.4)
-
-key("\x0e", "⌃N  new pane")
-key("3", "3  Antigravity", 0.7)
-type_text("Audit the landing page")
-send("\r")
-until(r"20/20 runs pass", 30)
-until(r"Preload the display font", 30)
-pump(1.2)
 
 c, r = find(" CODEX ")
 click(c + 12, r + 8)                              # usage follows the clicked pane
-pump(1.4)
+pump(1.2)
 c, r = find(" AGY ")
 click(c + 12, r + 8)
-pump(1.4)
+pump(1.2)
 
-key("\x14", "⌃T  GitHub", 1.2)
-pump(3.5)
+key("\x14", "⌃T  GitHub", 1.0)
+pump(3.0)
 send("\x11")
 pump(0.5)
 try:
@@ -305,8 +310,8 @@ subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *common, "-vf", "fps=15,sc
 subprocess.run(["ffmpeg", "-y", "-loglevel", "error", *common, "-i", palette, "-lavfi",
                 "fps=15,scale=1280:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer:bayer_scale=4:diff_mode=rectangle", gif], check=True)
 
-# Screenshot: the busiest frame (all three panes + GitHub column), drawn at 2x.
-best = max(frames, key=lambda f: sum(1 for row in f[1] for c in row if c[0] not in (" ", "")))
+# Screenshot: Claude waiting on its permission prompt while Codex and Antigravity work, at 2x.
+best = [f for f in frames if f[0] <= SHOT_AT][-1]
 draw2 = renderer(2)
 draw2(best[1], None, False, None).save(os.path.join(OUT, "screenshot.png"), optimize=True)
 shutil.rmtree(tmp, ignore_errors=True)

@@ -27,7 +27,7 @@
   <img alt="claude-tui running Claude Code, Codex and Antigravity in a bento grid" src="./docs/demo.gif" width="100%">
 </p>
 
-<p align="center"><sub>Recorded from the real UI in demo mode: the projects, chats and GitHub activity are made up.</sub></p>
+<p align="center"><sub>Three agents working at once: Claude adds a dark mode switch, Codex fixes a flaky test, Antigravity audits a page.<br/>Recorded from the real UI in demo mode; the projects, chats and GitHub activity are made up.</sub></p>
 
 <br/>
 
