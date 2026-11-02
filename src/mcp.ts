@@ -6,7 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { DEMO, demoMemories } from "./demo.js";
+import { DEMO } from "./demo.js";
 
 type Spawn = { command: string; args: string[]; env?: Record<string, string>; cwd?: string };
 
@@ -60,6 +60,9 @@ export class McpConnection {
 // ---------- Supermemory ----------
 
 /** The installed Supermemory plugin's folder (newest version in the plugin cache). */
+/** The optional memory timeline only shows when its plugin is installed (never in the demo). */
+export const hasTimeline = () => !DEMO && supermemoryRoot() !== null;
+
 function supermemoryRoot(): string | null {
   const base = path.join(os.homedir(), ".claude", "plugins", "cache", "supermemory-plugins", "supermemory");
   try {
@@ -73,7 +76,6 @@ function supermemoryRoot(): string | null {
 
 /** The plugin proxy scopes memories to the project of its working directory. */
 export function supermemoryFor(cwd: string): McpConnection | null {
-  if (DEMO) return { close() {} } as unknown as McpConnection;
   const root = supermemoryRoot();
   if (!root) return null;
   return new McpConnection("supermemory", () => ({
@@ -87,7 +89,6 @@ export function supermemoryFor(cwd: string): McpConnection | null {
 export type Memory = { id: string; memory: string; createdAt: string; updatedAt: string; isStatic?: boolean };
 
 export async function listMemories(conn: McpConnection, page: number, limit = 30) {
-  if (DEMO) { const entries = demoMemories(); return { entries, more: false, total: entries.length }; }
   const r = await conn.call("list_memories", { page, limit });
   if (r.isError) throw new Error(r.text);
   const entries: Memory[] = r.structured?.memoryEntries ?? [];

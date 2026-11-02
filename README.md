@@ -38,7 +38,7 @@
 - **Workspaces sidebar.** Your projects in `~/Claude Workspaces`, with each folder's sessions from all three agents (◦ Claude · ◆ Codex · ▲ Antigravity) and nested subfolders. Click a session to resume it in the right CLI.
 - **Usage that follows focus.** Click a pane and the Usage card shows that agent's 5-hour and weekly limits.
 - **Permission prompts that stay out of the way.** <kbd>y</kbd> / <kbd>a</kbd> / <kbd>n</kbd> for Claude and Codex approvals; <kbd>Shift</kbd> <kbd>Tab</kbd> changes the mode and the status line updates instantly.
-- **GitHub + memory, in reach.** <kbd>Ctrl</kbd> <kbd>T</kbd> opens your GitHub activity, PRs, issues and CI next to a Supermemory timeline; <kbd>Ctrl</kbd> <kbd>G</kbd> drives your real Chrome through Browser MCP.
+- **GitHub in reach.** <kbd>Ctrl</kbd> <kbd>T</kbd> opens your GitHub activity, PRs, issues and CI beside the panes; <kbd>Ctrl</kbd> <kbd>G</kbd> drives your real Chrome through Browser MCP.
 - **Made for the terminal.** Brand-colored pane tags, pixel agent icons, 12 themes (`/theme`), rebindable keys (`/keys`), mouse support and voice typing (<kbd>Ctrl</kbd> <kbd>V</kbd>, macOS speech recognition).
 
 ## 📥 Install
@@ -90,7 +90,7 @@ Try it without any agents or accounts: `npm run demo` opens the UI with made-up 
 | <kbd>Ctrl</kbd> <kbd>W</kbd> | Focus the sidebar and back |
 | <kbd>Ctrl</kbd> <kbd>P</kbd> / <kbd>Ctrl</kbd> <kbd>X</kbd> | Pause / close a pane (it stays resumable from the sidebar) |
 | <kbd>Shift</kbd> <kbd>Tab</kbd> | Permission mode: default → accept edits → plan → auto |
-| <kbd>Ctrl</kbd> <kbd>T</kbd> / <kbd>Ctrl</kbd> <kbd>G</kbd> | GitHub + timeline / browser panel |
+| <kbd>Ctrl</kbd> <kbd>T</kbd> / <kbd>Ctrl</kbd> <kbd>G</kbd> | GitHub / browser panel |
 | <kbd>Ctrl</kbd> <kbd>E</kbd> | Show every tool call instead of one summary line |
 | <kbd>Ctrl</kbd> <kbd>V</kbd> | Voice typing |
 | <kbd>/</kbd> | Commands: `/theme` `/model` `/mcp` `/keys` `/font` `/new` |
@@ -117,7 +117,7 @@ Every shortcut can be changed with `/keys`.
 | [`src/Chat.tsx`](./src/Chat.tsx) | One pane: transcript, prompt, permission box, status line |
 | [`src/backends/`](./src/backends/) | One adapter per agent; all emit the same message stream |
 | [`src/Sidebar.tsx`](./src/Sidebar.tsx) | Workspaces tree with every agent's sessions |
-| [`src/GitHub.tsx`](./src/GitHub.tsx), [`src/Timeline.tsx`](./src/Timeline.tsx) | GitHub panel, Supermemory timeline |
+| [`src/GitHub.tsx`](./src/GitHub.tsx) | GitHub panel (account or repo: activity, PRs, issues, CI) |
 | [`src/demo.ts`](./src/demo.ts) | Demo mode: made-up data and scripted replies |
 | [`voice/main.swift`](./voice/main.swift) | Speech-to-text helper, compiled on first use |
 | [`scripts/record-demo.py`](./scripts/record-demo.py) | Records `docs/demo.gif` from the real UI |

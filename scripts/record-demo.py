@@ -152,7 +152,7 @@ c, r = find(" AGY ")
 click(c + 12, r + 8)
 pump(1.4)
 
-key("\x14", "⌃T  GitHub + timeline", 1.2)
+key("\x14", "⌃T  GitHub", 1.2)
 pump(3.5)
 send("\x11")
 pump(0.5)

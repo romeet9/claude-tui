@@ -18,7 +18,7 @@ export const ACTIONS = {
   narrowPane: "Narrow the left column of the grid",
   widenPane: "Widen the left column of the grid",
   toggleSidebar: "Hide / show sidebar",
-  timeline: "GitHub + timeline panel",
+  timeline: "GitHub panel",
   browser: "Browser panel",
   expandTools: "Expand / collapse tool calls",
   voice: "Voice typing (start / stop)",

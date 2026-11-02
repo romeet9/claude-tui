@@ -12,6 +12,9 @@ import { loadLayout, saveLayout, flushLayout, type SavedLayout } from "./layout.
 import { KeysContext, loadKeymap, saveKeymap, describe, pretty, DEFAULT_KEYS, type KeysApi, type Keymap } from "./keys.js";
 import type { Theme } from "./theme.js";
 import { Timeline } from "./Timeline.js";
+import { hasTimeline } from "./mcp.js";
+/** The memory timeline under GitHub, only when its plugin is installed. */
+const TIMELINE = hasTimeline();
 import { GitHubPanel } from "./GitHub.js";
 import { Usage, USAGE_HEIGHT, REFRESH_LABEL, type Limits } from "./Usage.js";
 import { Browser, BROWSER_BODY_TOP } from "./Browser.js";
@@ -145,10 +148,10 @@ function App() {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [cursor, setCursor] = useState(0);
   const [focus, setFocus] = useState<"chat" | "sidebar" | "right">("chat");
-  /** Right-hand panel: the Supermemory timeline or the browser. */
+  /** Right-hand panel: GitHub (with the optional memory timeline) or the browser. */
   const [right, setRight] = useState<null | "timeline" | "browser">(SAVED?.right ?? null);
   const [rightScroll, setRightScroll] = useState({ n: 0, delta: 0 });
-  /** In the GitHub + timeline column, which of the two has the keyboard. */
+  /** In the GitHub column (and the optional timeline under it), which has the keyboard. */
   const [rightPane, setRightPane] = useState<"github" | "timeline">(SAVED?.rightPane ?? "github");
   const [githubScroll, setGithubScroll] = useState({ n: 0, delta: 0 });
   const [browserOpen, setBrowserOpen] = useState({ n: 0, url: "" });
@@ -315,7 +318,7 @@ function App() {
         return;
       }
       if (inRight) {
-        const onGitHub = st.right === "timeline" && ev.y <= st.githubH;
+        const onGitHub = st.right === "timeline" && (!TIMELINE || ev.y <= st.githubH);
         if (ev.kind === "wheelUp" || ev.kind === "wheelDown") {
           const bump = (s: { n: number; delta: number }) => ({ n: s.n + 1, delta: ev.kind === "wheelUp" ? 3 : -3 });
           if (onGitHub) setGithubScroll(bump);
@@ -603,8 +606,8 @@ function App() {
     }
     if (focus === "right") {
       // Tab moves between GitHub and the timeline; Esc in GitHub's list returns to the chat.
-      if (right === "timeline" && key.tab && !key.shift) return setRightPane((p) => (p === "github" ? "timeline" : "github"));
-      if (key.escape && (right !== "timeline" || rightPane === "timeline")) setFocus("chat");
+      if (TIMELINE && right === "timeline" && key.tab && !key.shift) return setRightPane((p) => (p === "github" ? "timeline" : "github"));
+      if (key.escape && (right !== "timeline" || !TIMELINE || rightPane === "timeline")) setFocus("chat");
       return;
     }
     if (focus !== "sidebar") return;
@@ -729,7 +732,7 @@ function App() {
       {right === "timeline" && (
           <Box flexDirection="column" width={rightWidth} height={height} flexShrink={0} rowGap={VGAP}>
             <Surface api={themeApi} theme={sectionTheme(theme, "github")}>
-            <GitHubPanel cwd={active.cwd} width={rightWidth} height={githubH}
+            <GitHubPanel cwd={active.cwd} width={rightWidth} height={TIMELINE ? githubH : height}
               focused={focus === "right" && rightPane === "github"} scrollRequest={githubScroll}
               onOpenUrl={(url) => {
                 setRight("browser");
@@ -742,10 +745,10 @@ function App() {
                 setFocus("chat");
               }} />
             </Surface>
-            <Surface api={themeApi} theme={sectionTheme(theme, "timeline")}>
+            {TIMELINE && <Surface api={themeApi} theme={sectionTheme(theme, "timeline")}>
             <Timeline cwd={active.cwd} width={rightWidth} height={height - githubH - VGAP}
               focused={focus === "right" && rightPane === "timeline"} scrollRequest={rightScroll} />
-            </Surface>
+            </Surface>}
           </Box>
         )}
         {right === "browser" && (

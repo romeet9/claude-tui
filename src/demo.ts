@@ -193,16 +193,3 @@ export const demoGitHub = {
   repoActivity: (_r: string) => list(),
   detail: async (e: Entry): Promise<Detail> => ({ title: e.title, lines: [{ text: e.meta, tone: "muted" }, { text: "Demo data." }] }),
 };
-
-// ---------- Supermemory timeline ----------
-
-export const demoMemories = () => {
-  const m = (id: string, min: number, memory: string, isStatic = false) => ({ id, memory, createdAt: ago(min), updatedAt: ago(min), isStatic });
-  return [
-    m("m1", 6, "Dark mode follows the system setting until the user picks one; the choice is saved per user."),
-    m("m2", 94, "Cart tests must wait for #checkout to be enabled; clicking early caused the flake."),
-    m("m3", 300, "Landing page target: Lighthouse performance ≥ 90 on mobile."),
-    m("m4", 60 * 26, "Acme web app deploys from main through GitHub Actions.", true),
-    m("m5", 60 * 27, "Design tokens live in acme/design-system; the web app pins v2.x."),
-  ];
-};
