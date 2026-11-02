@@ -57,6 +57,7 @@ const LOCAL_COMMANDS: SlashCommand[] = [
   { name: "keys", description: "Change keyboard shortcuts", argumentHint: "" },
   { name: "font", description: "Change the terminal font and size (previews as you move)", argumentHint: "" },
   { name: "new", description: "Start a new session in this folder", argumentHint: "" },
+  { name: "copy", description: "Copy the last reply to the clipboard (/copy all: the whole chat)", argumentHint: "[all]" },
   { name: "exit", description: "Quit claude-tui", argumentHint: "" },
 ];
 
@@ -522,6 +523,24 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
     }
   }
 
+  /**
+   * /copy: selecting with the mouse can't work well here (mouse capture, and a terminal
+   * selection runs across neighbouring panes), so copy straight to the clipboard.
+   */
+  function copyToClipboard(all: boolean) {
+    const text = all
+      ? items.filter((i) => i.kind === "user" || i.kind === "text")
+          .map((i) => (i.kind === "user" ? `> ${i.text.replace(/\n/g, "\n> ")}` : i.text)).join("\n\n")
+      : [...items].reverse().find((i) => i.kind === "text")?.text ?? "";
+    if (!text) return push(item("info", "Nothing to copy yet."));
+    try {
+      execFileSync("pbcopy", [], { input: text });
+      push(item("info", all ? "Copied the whole chat." : "Copied the last reply."));
+    } catch {
+      push(item("error", "Couldn't copy (pbcopy failed)."));
+    }
+  }
+
   /** keepDraft: a workflow message is sent without touching what you're typing. */
   function submit(override?: string, keepDraft = false) {
     const text = (override ?? input).trim();
@@ -537,6 +556,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
     if (text === "/theme") return openThemeMenu();
     if (text === "/keys") return openKeysMenu();
     if (text === "/font") return openFontMenu();
+    if (text === "/copy" || text === "/copy all") return copyToClipboard(text === "/copy all");
     push({ ...item("user", text), at: Date.now() });
     if (title === "New session") onTitle(text.replace(/\s+/g, " ").slice(0, 80));
     setScrollUp(0);
