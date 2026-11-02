@@ -1,11 +1,12 @@
-// Workflows: a private module that opens a fixed set of linked panes and drives them.
-// `claude-tui --workflow <name>` loads ~/.config/claude-tui/workflows/<name>/workflow.mjs.
+// Workflows: a module that opens a fixed set of linked panes and drives them.
+// `claude-tui --workflow <name>` loads ~/.config/claude-tui/workflows/<name>/workflow.mjs
+// (your own), or else the one that ships with claude-tui in workflows/<name>/.
 // The module lists the panes (role, agent, folder, extra instructions, extra MCP tools)
 // and gets a small API to show status on each pane and hand it messages.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import type { AgentKind } from "./backends/types.js";
 
 export type WorkflowPane = {
@@ -48,6 +49,12 @@ export type Workflow = {
 };
 
 export const WORKFLOWS_DIR = path.join(os.homedir(), ".config", "claude-tui", "workflows");
+/** Workflows that ship with claude-tui: <app>/workflows (src/ and dist/ both sit one level down). */
+const BUNDLED_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "workflows");
+
+const names = (dir: string) => {
+  try { return fs.readdirSync(dir).filter((n) => fs.existsSync(path.join(dir, n, "workflow.mjs"))); } catch { return []; }
+};
 
 /** --workflow <name> from the command line, if any. */
 export function workflowArg(argv: string[]): string | undefined {
@@ -57,8 +64,11 @@ export function workflowArg(argv: string[]): string | undefined {
 }
 
 export async function loadWorkflow(name: string): Promise<Workflow> {
-  const file = path.join(WORKFLOWS_DIR, name, "workflow.mjs");
-  if (!fs.existsSync(file)) throw new Error(`No workflow "${name}": expected ${file}`);
+  const file = [WORKFLOWS_DIR, BUNDLED_DIR].map((d) => path.join(d, name, "workflow.mjs")).find((f) => fs.existsSync(f));
+  if (!file) {
+    const all = [...new Set([...names(BUNDLED_DIR), ...names(WORKFLOWS_DIR)])];
+    throw new Error(`No workflow "${name}".${all.length ? ` Available: ${all.join(", ")}` : ""}`);
+  }
   const mod = await import(pathToFileURL(file).href);
   const wf = (mod.default ?? mod) as Workflow;
   if (!wf?.panes?.length) throw new Error(`Workflow "${name}" has no panes`);

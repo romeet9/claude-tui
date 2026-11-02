@@ -42,6 +42,7 @@ EOF
 mkdir -p "$STAGE/app/scripts" "$STAGE/app/voice"
 cp scripts/demo.mjs "$STAGE/app/scripts/"
 cp voice/main.swift voice/Info.plist "$STAGE/app/voice/"
+cp -R workflows "$STAGE/app/workflows"
 
 echo "▸ voice helper"
 swiftc -O voice/main.swift -o "$STAGE/app/voice/claude-tui-voice" \

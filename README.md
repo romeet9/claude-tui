@@ -38,6 +38,7 @@
 - **Workspaces sidebar.** Your projects in `~/Claude Workspaces`, with each folder's sessions from all three agents (◦ Claude · ◆ Codex · ▲ Antigravity) and nested subfolders. Click a session to resume it in the right CLI.
 - **Usage that follows focus.** Click a pane and the Usage card shows that agent's 5-hour and weekly limits.
 - **Permission prompts that stay out of the way.** <kbd>y</kbd> / <kbd>a</kbd> / <kbd>n</kbd> for Claude and Codex approvals; <kbd>Shift</kbd> <kbd>Tab</kbd> changes the mode and the status line updates instantly.
+- **A Figma workflow for design engineers.** `claude-tui --workflow figma` opens three linked Claude sessions: one designs with you in Figma, one acts on developers' comments and Dev Mode annotations, one turns finished designs into pull requests. [Set it up](#-figma-workflow).
 - **GitHub in reach.** <kbd>Ctrl</kbd> <kbd>T</kbd> opens your GitHub activity, PRs, issues and CI beside the panes; <kbd>Ctrl</kbd> <kbd>G</kbd> drives your real Chrome through Browser MCP.
 - **Made for the terminal.** Brand-colored pane tags, pixel agent icons, 32 themes (`/theme`), 20 of them with their own UI style: frames, titles, tags, prompt marker, how your prompts appear, status line, rebindable keys (`/keys`), mouse support and voice typing (<kbd>Ctrl</kbd> <kbd>V</kbd>, macOS speech recognition).
 
@@ -128,6 +129,81 @@ claude-tui --fresh          # ignore the saved layout
 
 Try it without any agents or accounts: `npm run demo` opens the UI with made-up projects and scripted replies, in a throwaway home folder.
 
+## 🎨 Figma workflow
+
+For design engineers: one command opens three Claude sessions that work on the same Figma file and hand work to each other.
+
+| Pane | Does |
+| --- | --- |
+| **Design** (full width) | Designs with you in Figma, round by round: "make 5 versions of the card" → you pick one → "iterate on C3". The pane shows the round, the variants and your pick. |
+| **Annotations** | Checks the file for new comments and Dev Mode annotations from developers, makes the changes in Figma and marks each one done. |
+| **Publish** | Turns finished designs into code in your project, opens a pull request (never pushes to main) and shows its checks live. |
+
+### Set it up
+
+**1. Sign in to Figma in Claude Code first.** claude-tui can't do the Figma sign-in itself, so do it once in the official Claude Code CLI ([install it](https://docs.anthropic.com/en/docs/claude-code) if you haven't):
+
+```bash
+claude plugin install figma@claude-plugins-official     # Figma's official plugin
+claude                                                   # start Claude Code, then type:
+/mcp                                                     # pick "plugin:figma:figma" → Authenticate
+```
+
+A browser window opens; allow access and come back. Check it worked:
+
+```bash
+claude mcp list        # shows: plugin:figma:figma … ✔ Connected
+```
+
+claude-tui uses this same sign-in, so you only do it once.
+
+**2. Tell the workflow which Figma file to use.** Run it once; it creates its settings file and tells you what to fill in:
+
+```bash
+claude-tui --workflow figma
+```
+
+Open `~/.config/claude-tui/workflows/figma/config.json` and set your file:
+
+```json
+{
+  "figmaFile": "https://www.figma.com/design/AbC123xyz/My-App",
+  "library": "",
+  "designFolder": "",
+  "codeFolder": "~/code/my-app",
+  "checkEveryMinutes": 15
+}
+```
+
+| Setting | Meaning |
+| --- | --- |
+| `figmaFile` | **Required.** Link to the Figma file you design in (copy it from the browser) |
+| `library` | Optional. Link or name of the component library to design with; empty = the libraries enabled in the file |
+| `codeFolder` | Where Publish writes code and opens pull requests; empty = the folder you run claude-tui in |
+| `designFolder` | Folder the Design and Annotations sessions work from; empty = the folder you run claude-tui in |
+| `checkEveryMinutes` | How often to look for new comments and annotations |
+
+**3. Optional: let it watch for developers' comments.** Annotations needs a Figma personal access token to see new comments. In Figma: **Settings → Security → Personal access tokens → Generate new token**, with read access to **File content**, **Comments** and **Current user**. Save it in your Mac's Keychain (it asks you to paste it):
+
+```bash
+security add-generic-password -s claude-tui-figma -a figma -w
+```
+
+Without a token everything else works; the Annotations pane just says comment checks are off.
+
+**4. Optional: pull requests.** Publish uses the [GitHub CLI](https://cli.github.com) (`gh auth login`) in your `codeFolder`, which must be a git repo with a GitHub remote.
+
+**5. Run it.**
+
+```bash
+claude-tui --workflow figma            # resumes the three sessions from last time
+claude-tui --workflow figma --fresh    # starts three new sessions
+```
+
+Talk to the Design pane as you would to Claude. The first comment check only records what's already there, so you're sent only comments that arrive after setup.
+
+> **Figma tools missing in a pane?** Your Figma sign-in expired. Run `claude`, then `/mcp`, and authenticate `plugin:figma:figma` again (step 1).
+
 ## ⌨️ Keys
 
 | Keys | Does |
@@ -167,6 +243,7 @@ Every shortcut can be changed with `/keys`.
 | [`src/backends/`](./src/backends/) | One adapter per agent; all emit the same message stream |
 | [`src/Sidebar.tsx`](./src/Sidebar.tsx) | Workspaces tree with every agent's sessions |
 | [`src/GitHub.tsx`](./src/GitHub.tsx) | GitHub panel (account or repo: activity, PRs, issues, CI) |
+| [`workflows/figma/`](./workflows/figma/) | The Figma workflow (`--workflow figma`) |
 | [`src/demo.ts`](./src/demo.ts) | Demo mode: made-up data and scripted replies |
 | [`voice/main.swift`](./voice/main.swift) | Speech-to-text helper, compiled on first use |
 | [`scripts/record-demo.py`](./scripts/record-demo.py) | Records `docs/demo.gif` from the real UI |
