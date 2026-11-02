@@ -1,6 +1,6 @@
 {
   "name": "claude-tui",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A full-screen terminal workspace for coding agents: Claude Code, Codex and Antigravity side by side.",
   "scripts": {
     "start": "tsx src/app.tsx",
