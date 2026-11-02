@@ -30,7 +30,9 @@ const built = path.join(root, "dist", "app.mjs");
 const [cmd, entry] = fs.existsSync(built)
   ? [process.execPath, built]
   : [path.join(root, "node_modules", ".bin", "tsx"), path.join(root, "src", "app.tsx")];
-const child = spawn(cmd, [entry, "--demo", "--theme", "figma", ...process.argv.slice(2)],
+const extra = process.argv.slice(2);
+const theme = extra.includes("--theme") ? [] : ["--theme", "figma"];
+const child = spawn(cmd, [entry, "--demo", ...theme, ...extra],
   { cwd: app, stdio: "inherit", env: { ...process.env, HOME: home, CLAUDE_TUI_DEMO: "1" } });
 child.on("exit", (code) => {
   fs.rmSync(home, { recursive: true, force: true });

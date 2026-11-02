@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { supermemoryFor, listMemories, type Memory } from "./mcp.js";
-import { useTheme , bc, ruleOf } from "./theme.js";
+import { useTheme , bc, ruleOf, frameOf, titleOf, focusMark, focusInvert } from "./theme.js";
 
 const dayLabel = (iso: string) => {
   const d = new Date(iso);
@@ -129,10 +129,10 @@ export function Timeline(props: {
   const count = total != null ? `${entries.length}/${total}` : `${entries.length}`;
 
   return (
-    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle="round"
+    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle={frameOf(t)}
       borderBackgroundColor={t.bg} borderColor={bc(t, focused ? accent : t.border)} paddingX={1}>
-      <Text bold color={focused ? accent : t.white} wrap="truncate">
-        {t.flat && focused ? "● " : ""}Timeline <Text color={t.gray}>· supermemory · {count}</Text>
+      <Text bold color={focusInvert(t, focused) ? t.black : focused ? accent : t.white} backgroundColor={focusInvert(t, focused) ? accent : undefined} wrap="truncate">
+        {focusMark(t, focused)}{titleOf(t, "Timeline")} <Text color={t.gray}>· supermemory · {count}</Text>
         {loading && entries.length ? <Text color={t.gray}>  · loading…</Text> : null}
         {focused && <Text color={t.gray}>   ↑↓ scroll · r refresh</Text>}
       </Text>

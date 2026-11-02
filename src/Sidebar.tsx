@@ -6,7 +6,7 @@ import { Box, Text } from "ink";
 import { ago, listSubfolders, type Workspace, type SessionInfo } from "./workspaces.js";
 import { agentInfo } from "./backends/types.js";
 import { clip } from "./transcript.js";
-import { useTheme , bc, ruleOf } from "./theme.js";
+import { useTheme , bc, ruleOf, frameOf, titleOf, focusMark, focusInvert, skinOf } from "./theme.js";
 import { useKeys, pretty } from "./keys.js";
 
 /**
@@ -124,13 +124,13 @@ export function Sidebar(props: {
       height={height}
       flexShrink={0}
       backgroundColor={t.bg}
-      borderStyle="round" borderBackgroundColor={t.bg}
+      borderStyle={frameOf(t)} borderBackgroundColor={t.bg}
       borderColor={bc(t, focused ? accent : t.border)}
       paddingX={1}
     >
       <Box flexShrink={0} flexDirection="column">
-        <Text bold color={focused ? accent : t.white} wrap="truncate">
-          {pad((t.flat && focused ? "● " : "") + "Workspaces", inner)}
+        <Text bold color={focusInvert(t, focused) ? t.black : focused ? accent : t.white} backgroundColor={focusInvert(t, focused) ? accent : undefined} wrap="truncate">
+          {pad(focusMark(t, focused) + titleOf(t, "Workspaces"), inner)}
         </Text>
         <Text color={t.gray}>{ruleOf(t, inner)}</Text>
       </Box>
@@ -141,7 +141,7 @@ export function Sidebar(props: {
           switch (row.kind) {
             case "dir": {
               const indent = "  ".repeat(row.depth);
-              const arrow = expanded.has(row.id) ? "▾ " : "▸ ";
+              const arrow = (expanded.has(row.id) ? skinOf(t).tree[0] : skinOf(t).tree[1]) + " ";
               const here = row.path === activeCwd;
               const label = `${indent}${arrow}${row.name}${here ? " ●" : ""}`;
               return line(row.id, label, sel, here ? t.green : row.isWorkspace ? t.white : t.gray, row.isWorkspace || here);

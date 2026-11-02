@@ -8,7 +8,7 @@ import { DEMO, demoGitHub } from "./demo.js";
 
 const G = DEMO ? demoGitHub : RealG;
 import type { Entry, Detail } from "./githubData.js";
-import { useTheme, type Theme , bc, ruleOf } from "./theme.js";
+import { useTheme, type Theme , bc, ruleOf, frameOf, titleOf, focusMark, focusInvert } from "./theme.js";
 import { clip } from "./transcript.js";
 
 type Scope = { kind: "account" } | { kind: "repo"; repo: string };
@@ -260,12 +260,12 @@ export function GitHubPanel(props: {
     tone === "good" ? t.green : tone === "bad" ? t.red : tone === "warn" ? t.yellow : tone === "muted" ? t.gray : tone === "head" ? accent : t.white;
 
   return (
-    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle="round"
+    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle={frameOf(t)}
       borderBackgroundColor={t.bg} borderColor={bc(t, focused ? accent : t.border)} paddingX={1}>
       <Box flexShrink={0} flexDirection="column">
       <Text wrap="truncate" color={t.white}>
-        <Text bold color={focused ? accent : t.white}>{t.flat && focused ? "● " : ""}GitHub</Text>
-        <Text color={t.gray}>{" · " + clip(title, Math.max(4, inner - 9 - (loading ? 4 : 0)))}</Text>
+        <Text bold color={focusInvert(t, focused) ? t.black : focused ? accent : t.white} backgroundColor={focusInvert(t, focused) ? accent : undefined}>{focusMark(t, focused)}{titleOf(t, "GitHub")}</Text>
+        <Text color={t.gray}>{" · " + clip(title, Math.max(4, inner - 3 - titleOf(t, "GitHub").length - focusMark(t, focused).length - (loading ? 4 : 0)))}</Text>
         {loading && <Text color={t.yellow}>{" ⟳"}</Text>}
       </Text>
       <Text wrap="truncate" color={t.gray}>

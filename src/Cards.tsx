@@ -3,7 +3,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import type { ToolCall, Workflow } from "./blocks.js";
-import { useTheme, type Theme , bc, ruleOf } from "./theme.js";
+import { useTheme, type Theme , bc, ruleOf, frameOf } from "./theme.js";
 import { clip } from "./transcript.js";
 
 const shortTool = (name: string) => name.replace(/^mcp__.+?__/, "");
@@ -69,7 +69,7 @@ export function WorkflowCard({ workflow, calls, running, width }: {
   const failed = calls.filter((c) => c.isError).length;
   const lines = details(workflow, calls, width - 4);
   return (
-    <Box flexDirection="column" flexShrink={0} width={width} borderStyle="round" backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg}
+    <Box flexDirection="column" flexShrink={0} width={width} borderStyle={frameOf(t)} backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg}
       borderColor={t.card ?? (failed ? t.red : color)} paddingX={1}>
       <Text wrap="truncate" color={t.white}>
         <Text bold color={color}>{TITLE[workflow]}</Text>

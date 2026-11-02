@@ -23,10 +23,53 @@ export type Palette = {
   border: string;
 };
 
+/**
+ * The shape of the UI, not its colors: frames, titles, dividers, tags, glyphs and the
+ * status line. A theme can set any of these; the rest come from DEFAULT_SKIN.
+ * Geometry never changes (every frame is one cell wide), so layout and mouse math hold.
+ */
+export type Skin = {
+  /** Panel frames. "none" keeps the space but draws nothing. */
+  frame: FrameName;
+  /** Chat panes: each its own frame style ("cycle") or the panel frame ("same"). */
+  paneFrames: "cycle" | "same";
+  /** How section titles are written. */
+  title: "plain" | "caps" | "bracket" | "slash" | "hash" | "arrow" | "diamond" | "section";
+  /** Divider character under titles and around the prompt (" " hides them). */
+  divider: string;
+  /** Agent tags on pane titles. */
+  tag: "pill" | "bracket" | "dot" | "slash" | "caps";
+  /** The prompt marker. */
+  prompt: string;
+  /** How your prompts appear in the transcript. */
+  you: "band" | "quote" | "echo" | "bubble" | "card";
+  /** Tool lines: finished and running markers. */
+  tool: [done: string, running: string];
+  /** Sidebar folders: open and closed markers. */
+  tree: [open: string, closed: string];
+  /** Status line: how segments are separated. */
+  status: "pipes" | "dots" | "slashes" | "brackets" | "blocks";
+  spinner: string[];
+  /** How a focused panel shows it, beyond its border color. */
+  focus: "border" | "dot" | "invert" | "arrow";
+  /** Columns between side-by-side sections (rows between stacked ones = gap > 1 ? 1 : 0). */
+  gap: number;
+};
+
+export type FrameName = "round" | "single" | "double" | "bold" | "classic" | "dashed" | "dotted" | "blocks" | "none";
+
+export const DEFAULT_SKIN: Skin = {
+  frame: "round", paneFrames: "cycle", title: "plain", divider: "─", tag: "pill", prompt: "›", you: "band",
+  tool: ["◦", "◌"], tree: ["▾", "▸"], status: "pipes",
+  spinner: ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], focus: "border", gap: 1,
+};
+
 export type Theme = Palette & {
   id: string;
   name: string;
   light?: boolean;
+  /** The UI's shape (see Skin); unset parts use DEFAULT_SKIN. */
+  skin?: Partial<Skin>;
   /** Per-panel focus colors; panels fall back to the accent (cyan). */
   focus?: { sidebar?: string; chat?: string; timeline?: string; browser?: string };
   /**
@@ -43,8 +86,48 @@ export type Theme = Palette & {
 
 /** A border color, or the block's own fill in flat blocks (so the line disappears). */
 export const bc = (t: Theme, color: string) => (t.flat && t.bg ? t.bg : color);
-/** A divider row: a line, or blank space in flat blocks. */
-export const ruleOf = (t: Theme, width: number) => (t.flat ? " " : "─").repeat(Math.max(0, width));
+/** The theme's skin, with defaults filled in. */
+export const skinOf = (t: Theme): Skin => ({ ...DEFAULT_SKIN, ...(t.skin ?? {}) });
+/** A divider row in the theme's divider character, or blank space in flat blocks. */
+export const ruleOf = (t: Theme, width: number) => (t.flat ? " " : skinOf(t).divider || " ").repeat(Math.max(0, width));
+
+type BoxChars = { topLeft: string; top: string; topRight: string; right: string; bottomRight: string; bottom: string; bottomLeft: string; left: string };
+const CUSTOM_FRAMES: Partial<Record<FrameName, BoxChars>> = {
+  dashed: { topLeft: "┌", top: "╌", topRight: "┐", right: "╎", bottomRight: "┘", bottom: "╌", bottomLeft: "└", left: "╎" },
+  dotted: { topLeft: "·", top: "·", topRight: "·", right: "·", bottomRight: "·", bottom: "·", bottomLeft: "·", left: "·" },
+  blocks: { topLeft: "▛", top: "▀", topRight: "▜", right: "▐", bottomRight: "▟", bottom: "▄", bottomLeft: "▙", left: "▌" },
+  none: { topLeft: " ", top: " ", topRight: " ", right: " ", bottomRight: " ", bottom: " ", bottomLeft: " ", left: " " },
+};
+/** An Ink borderStyle for a frame name (built-in names pass through). */
+export const frameStyle = (name: FrameName): any => CUSTOM_FRAMES[name] ?? name;
+/** A panel's frame. */
+export const frameOf = (t: Theme) => frameStyle(skinOf(t).frame);
+const PANE_CYCLE: FrameName[] = ["round", "bold", "double", "single"];
+/** A chat pane's frame: its own style per pane, or the theme's panel frame. */
+export const paneFrameOf = (t: Theme, paneId: number) =>
+  skinOf(t).paneFrames === "same" ? frameOf(t) : frameStyle(PANE_CYCLE[paneId % PANE_CYCLE.length]);
+
+/** A section title in the theme's style ("Workspaces" → "[ WORKSPACES ]", "// workspaces"…). */
+export function titleOf(t: Theme, text: string): string {
+  switch (skinOf(t).title) {
+    case "caps": return text.toUpperCase();
+    case "bracket": return `[ ${text.toUpperCase()} ]`;
+    case "slash": return `// ${text.toLowerCase()}`;
+    case "hash": return `# ${text}`;
+    case "arrow": return `▸ ${text}`;
+    case "diamond": return `◆ ${text}`;
+    case "section": return `§ ${text}`;
+    default: return text;
+  }
+}
+/** Marker before a focused panel's title ("● ", "▶ "…), or "". */
+export const focusMark = (t: Theme, focused: boolean) => {
+  if (!focused) return t.flat ? "" : "";
+  const f = skinOf(t).focus;
+  return f === "dot" || t.flat ? "● " : f === "arrow" ? "▶ " : "";
+};
+/** Whether a focused panel's title is drawn inverted (accent background). */
+export const focusInvert = (t: Theme, focused: boolean) => focused && skinOf(t).focus === "invert";
 
 export type Section = "sidebar" | "usage" | "github" | "timeline" | "browser";
 
@@ -131,6 +214,147 @@ export const THEMES: Theme[] = [
     white: "#586e75", gray: "#93a1a1", cyan: "#268bd2", green: "#859900", yellow: "#b58900",
     red: "#dc322f", magenta: "#d33682", black: "#fdf6e3", border: "#eee8d5",
   },
+  // ---------- styled themes: each one a palette plus its own UI shape (see Skin) ----------
+  {
+    id: "retro-dos", name: "Retro DOS", bg: "#0000a8",
+    white: "#ffffff", gray: "#a8a8a8", cyan: "#ffff55", green: "#55ff55", yellow: "#ffff55",
+    red: "#ff5555", magenta: "#ff55ff", black: "#0000a8", border: "#a8a8a8",
+    skin: { frame: "double", paneFrames: "same", title: "bracket", divider: "═", tag: "bracket", prompt: ">", you: "echo",
+      tool: ["■", "□"], tree: ["-", "+"], status: "brackets", spinner: ["|", "/", "-", "\\"], focus: "invert" },
+  },
+  {
+    id: "matrix", name: "Matrix", bg: "#000000",
+    white: "#9cff9c", gray: "#2e7d32", cyan: "#00ff41", green: "#00ff41", yellow: "#c6ff00",
+    red: "#ff3d3d", magenta: "#76ff03", black: "#000000", border: "#0b3d0b",
+    skin: { frame: "dashed", paneFrames: "same", title: "slash", divider: "╌", tag: "slash", prompt: "λ", you: "echo",
+      tool: ["▪", "▫"], tree: ["▼", "▶"], status: "slashes", spinner: ["⡀", "⠄", "⠂", "⠁", "⠈", "⠐", "⠠", "⢀"], focus: "arrow" },
+  },
+  {
+    id: "brutalist", name: "Brutalist (light)", bg: "#ffffff", light: true,
+    white: "#000000", gray: "#555555", cyan: "#ff3b00", green: "#00a651", yellow: "#c79a00",
+    red: "#ff3b00", magenta: "#0047ff", black: "#ffffff", border: "#000000",
+    skin: { frame: "blocks", paneFrames: "same", title: "caps", divider: "━", tag: "caps", prompt: "→", you: "card",
+      tool: ["■", "▢"], tree: ["−", "+"], status: "blocks", spinner: ["▖", "▘", "▝", "▗"], focus: "invert", gap: 2 },
+  },
+  {
+    id: "paper", name: "Paper (light)", bg: "#f8f4e8", light: true,
+    white: "#2b2621", gray: "#8a8172", cyan: "#b5501b", green: "#4f7d35", yellow: "#a87a00",
+    red: "#b3261e", magenta: "#7a4f9a", black: "#f8f4e8", border: "#d8cfbd",
+    skin: { frame: "none", paneFrames: "same", title: "section", divider: "·", tag: "dot", prompt: "✎", you: "quote",
+      tool: ["·", "∘"], status: "dots", spinner: ["◜", "◝", "◞", "◟"], focus: "dot", gap: 2 },
+  },
+  {
+    id: "synthwave", name: "Synthwave", bg: "#1a1033",
+    white: "#f8e9ff", gray: "#8b6fb3", cyan: "#ff2a6d", green: "#05d9e8", yellow: "#ffd319",
+    red: "#ff2a6d", magenta: "#d300c5", black: "#1a1033", border: "#4b2d7f",
+    skin: { frame: "double", paneFrames: "cycle", title: "diamond", divider: "═", tag: "pill", prompt: "▶", you: "bubble",
+      tool: ["◆", "◇"], tree: ["▼", "▶"], status: "blocks", spinner: ["◐", "◓", "◑", "◒"], focus: "border", gap: 2 },
+  },
+  {
+    id: "nord-frost", name: "Nord Frost", bg: "#242933",
+    white: "#eceff4", gray: "#7b88a1", cyan: "#88c0d0", green: "#a3be8c", yellow: "#ebcb8b",
+    red: "#bf616a", magenta: "#b48ead", black: "#242933", border: "#3b4252",
+    skin: { frame: "round", paneFrames: "same", title: "plain", divider: "─", tag: "dot", prompt: "❯", you: "quote",
+      tool: ["✓", "…"], tree: ["⌄", "›"], status: "dots", spinner: ["·  ", "·· ", "···", " ··", "  ·"], focus: "dot", gap: 2 },
+  },
+  {
+    id: "amber-crt", name: "Amber CRT", bg: "#0c0800",
+    white: "#ffb000", gray: "#8a5f00", cyan: "#ffcc33", green: "#ffb000", yellow: "#ffd966",
+    red: "#ff6a00", magenta: "#ffcc66", black: "#0c0800", border: "#4d3500",
+    skin: { frame: "classic", paneFrames: "same", title: "caps", divider: "-", tag: "bracket", prompt: "$", you: "echo",
+      tool: ["*", "~"], tree: ["v", ">"], status: "brackets", spinner: ["|", "/", "-", "\\"], focus: "arrow" },
+  },
+  {
+    id: "glass", name: "Glass", bg: "#10141c",
+    white: "#e6edf7", gray: "#6b7a90", cyan: "#7dd3fc", green: "#86efac", yellow: "#fde68a",
+    red: "#fca5a5", magenta: "#c4b5fd", black: "#10141c", border: "#263043",
+    skin: { frame: "round", paneFrames: "same", title: "plain", divider: "┈", tag: "pill", prompt: "›", you: "card",
+      tool: ["○", "◌"], status: "dots", focus: "dot", gap: 2 },
+  },
+  {
+    id: "blueprint", name: "Blueprint", bg: "#0b3a6e",
+    white: "#e6f0ff", gray: "#8fb3e0", cyan: "#ffffff", green: "#9ef0c0", yellow: "#ffe28a",
+    red: "#ff9a8a", magenta: "#c9b6ff", black: "#0b3a6e", border: "#4f7fbf",
+    skin: { frame: "dashed", paneFrames: "same", title: "section", divider: "┄", tag: "bracket", prompt: "▸", you: "quote",
+      tool: ["✓", "⋯"], tree: ["▿", "▹"], status: "slashes", spinner: ["┤", "┘", "┴", "└", "├", "┌", "┬", "┐"], focus: "arrow" },
+  },
+  {
+    id: "zen", name: "Zen (no frames)", bg: "#121212",
+    white: "#dedede", gray: "#6e6e6e", cyan: "#9ecbff", green: "#8fd694", yellow: "#e5c07b",
+    red: "#ef7b7b", magenta: "#c49bdb", black: "#121212", border: "#2a2a2a",
+    skin: { frame: "none", paneFrames: "same", title: "plain", divider: " ", tag: "dot", prompt: "❯", you: "echo",
+      tool: ["·", "…"], status: "dots", spinner: ["◡", "⊙", "◠"], focus: "dot", gap: 3 },
+  },
+  {
+    id: "forest", name: "Forest", bg: "#14201a",
+    white: "#e3ecd9", gray: "#7c8f7a", cyan: "#8bc34a", green: "#8bc34a", yellow: "#e0c068",
+    red: "#e07a5f", magenta: "#b39ddb", black: "#14201a", border: "#2c3e33",
+    skin: { frame: "round", paneFrames: "cycle", title: "arrow", divider: "─", tag: "dot", prompt: "»", you: "band",
+      tool: ["•", "◦"], status: "pipes", spinner: ["◴", "◷", "◶", "◵"], focus: "border" },
+  },
+  {
+    id: "solar-flare", name: "Solar Flare", bg: "#1c1410",
+    white: "#fff1e6", gray: "#a08670", cyan: "#ff7a1a", green: "#9ccc65", yellow: "#ffc233",
+    red: "#ff4d2e", magenta: "#ff6fa3", black: "#1c1410", border: "#4a3426",
+    skin: { frame: "bold", paneFrames: "same", title: "caps", divider: "━", tag: "pill", prompt: "»", you: "band",
+      tool: ["▶", "▷"], tree: ["▼", "▶"], status: "blocks", spinner: ["▁", "▃", "▄", "▅", "▆", "▇", "▆", "▅", "▄", "▃"], focus: "invert" },
+  },
+  {
+    id: "rose-bubble", name: "Rosé Bubble", bg: "#2a1f2d",
+    white: "#fbe7f0", gray: "#a3889b", cyan: "#ff8fb7", green: "#a6e3b8", yellow: "#ffd59e",
+    red: "#ff7a90", magenta: "#d0a6ff", black: "#2a1f2d", border: "#4b3650",
+    skin: { frame: "round", paneFrames: "cycle", title: "plain", divider: "┈", tag: "dot", prompt: "♡", you: "bubble",
+      tool: ["✿", "❀"], status: "dots", spinner: ["♡", "♥"], focus: "dot", gap: 2 },
+  },
+  {
+    id: "mono-ink", name: "Mono Ink (light)", bg: "#ffffff", light: true,
+    white: "#111111", gray: "#8a8a8a", cyan: "#111111", green: "#2e7d32", yellow: "#8d6e00",
+    red: "#c62828", magenta: "#555555", black: "#ffffff", border: "#d0d0d0",
+    skin: { frame: "single", paneFrames: "same", title: "caps", divider: "─", tag: "caps", prompt: ">", you: "card",
+      tool: ["—", "…"], tree: ["−", "+"], status: "slashes", spinner: ["-", "\\", "|", "/"], focus: "invert" },
+  },
+  {
+    id: "newsprint", name: "Newsprint (light)", bg: "#f6f6ef", light: true,
+    white: "#222222", gray: "#828282", cyan: "#ff6600", green: "#3c8d2f", yellow: "#b07a00",
+    red: "#d93a00", magenta: "#7a5195", black: "#f6f6ef", border: "#e0dccd",
+    skin: { frame: "none", paneFrames: "same", title: "hash", divider: "─", tag: "bracket", prompt: ">", you: "quote",
+      tool: ["•", "◦"], tree: ["[-]", "[+]"], status: "pipes", focus: "arrow" },
+  },
+  {
+    id: "cyberpunk", name: "Cyberpunk", bg: "#0d0d0d",
+    white: "#f0f0f0", gray: "#7a7a7a", cyan: "#fcee0a", green: "#00f0ff", yellow: "#fcee0a",
+    red: "#ff003c", magenta: "#ff00a0", black: "#0d0d0d", border: "#333333",
+    skin: { frame: "bold", paneFrames: "cycle", title: "slash", divider: "━", tag: "slash", prompt: ">>", you: "band",
+      tool: ["▰", "▱"], tree: ["▼", "▶"], status: "slashes", spinner: ["▰▱▱", "▰▰▱", "▰▰▰", "▱▰▰", "▱▱▰"], focus: "invert" },
+  },
+  {
+    id: "ocean-deep", name: "Ocean Deep", bg: "#0a1a2f",
+    white: "#dbe9f6", gray: "#6c87a3", cyan: "#2ec4b6", green: "#7ae582", yellow: "#f6c85f",
+    red: "#ef6f6c", magenta: "#9b8cff", black: "#0a1a2f", border: "#1f3a5a",
+    skin: { frame: "round", paneFrames: "same", title: "plain", divider: "─", tag: "pill", prompt: "≫", you: "band",
+      tool: ["○", "◌"], status: "dots", spinner: ["◜", "◠", "◝", "◞", "◡", "◟"], focus: "border", gap: 2 },
+  },
+  {
+    id: "lavender", name: "Lavender (light)", bg: "#f3f0fa", light: true,
+    white: "#2e2540", gray: "#8e86a3", cyan: "#7c5cff", green: "#3f9c6b", yellow: "#a57600",
+    red: "#d14d72", magenta: "#a259ff", black: "#f3f0fa", border: "#ddd5f0",
+    skin: { frame: "round", paneFrames: "same", title: "plain", divider: "·", tag: "pill", prompt: "›", you: "quote",
+      status: "dots", focus: "dot", gap: 2 },
+  },
+  {
+    id: "espresso", name: "Espresso", bg: "#1e1714",
+    white: "#f3e9dc", gray: "#9c8573", cyan: "#d4a373", green: "#a3b18a", yellow: "#e9c46a",
+    red: "#e76f51", magenta: "#c08497", black: "#1e1714", border: "#3d2e26",
+    skin: { frame: "double", paneFrames: "same", title: "bracket", divider: "═", tag: "bracket", prompt: "»", you: "card",
+      tool: ["•", "∘"], status: "brackets", focus: "arrow" },
+  },
+  {
+    id: "high-contrast", name: "High Contrast", bg: "#000000",
+    white: "#ffffff", gray: "#c0c0c0", cyan: "#ffff00", green: "#00ff00", yellow: "#ffff00",
+    red: "#ff3030", magenta: "#ff66ff", black: "#000000", border: "#ffffff",
+    skin: { frame: "bold", paneFrames: "same", title: "caps", divider: "━", tag: "caps", prompt: "▶", you: "card",
+      tool: ["✓", "…"], tree: ["▼", "▶"], status: "brackets", spinner: ["◐", "◓", "◑", "◒"], focus: "invert" },
+  },
 ];
 
 // ---------- block surfaces ----------
@@ -176,6 +400,14 @@ export const chatTheme = (t: Theme, paneId: number) =>
   surfaceTheme(t, t.chatBlocks ? t.chatBlocks[paneId % t.chatBlocks.length] : undefined);
 
 export const themeById = (id: string | undefined) => THEMES.find((t) => t.id === id) ?? THEMES[0];
+
+/** One line about a theme's shape, for the /theme picker. */
+export function describeSkin(t: Theme): string {
+  if (!t.skin) return t.blocks ? "color blocks" : t.bg ? "" : "uses your terminal's background";
+  const k = skinOf(t);
+  const frame = { round: "rounded", single: "thin", double: "double", bold: "heavy", classic: "ASCII", dashed: "dashed", dotted: "dotted", blocks: "block", none: "no" }[k.frame];
+  return `${frame} frames · ${k.title} titles · ${k.you} prompts · ${k.prompt}`;
+}
 
 /** Resolves a role name ("gray", "cyan", …) or passes a literal color through. */
 export const paint = (t: Theme, name: string) => (t as any)[name] ?? name;

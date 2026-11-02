@@ -14,7 +14,7 @@ export const PICKER_ROW_STEP = 3;
 
 export function AgentPicker(props: {
   cwd: string; width: number; height: number; active: boolean; cursor: number;
-  index: number; count: number; paneColor: string; paneBorder: "round" | "bold" | "double" | "single";
+  index: number; count: number; paneColor: string; paneBorder: any;
 }) {
   const { cwd, width, height, active, cursor, index, count, paneColor, paneBorder } = props;
   const t = useTheme();

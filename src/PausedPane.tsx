@@ -10,7 +10,7 @@ import { agentInfo, type AgentKind } from "./backends/types.js";
 export function PausedPane(props: {
   cwd: string; width: number; height: number; active: boolean; agent: AgentKind; title: string;
   index: number; count: number; hasSession: boolean;
-  paneColor: string; paneBorder: "round" | "bold" | "double" | "single"; resumeKey: string;
+  paneColor: string; paneBorder: any; resumeKey: string;
 }) {
   const { cwd, width, height, active, hasSession, paneColor, paneBorder, resumeKey, agent, title } = props;
   const t = useTheme();

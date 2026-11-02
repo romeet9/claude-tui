@@ -18,7 +18,7 @@ import os from "node:os";
 import { monoFonts, currentFont, setFont, canChangeFont } from "./font.js";
 import { Dictation } from "./voice.js";
 import { toPct, toMs, type Limits } from "./Usage.js";
-import { useTheme, useThemeApi, paint, THEMES , bc, ruleOf, mix } from "./theme.js";
+import { useTheme, useThemeApi, paint, THEMES , bc, ruleOf, mix, skinOf, frameOf, describeSkin } from "./theme.js";
 import { useKeys, ACTIONS, RESERVED, describe, pretty, type Action } from "./keys.js";
 
 const MODE_LABEL: Record<PermissionMode, { text: string; color: string }> = {
@@ -46,7 +46,6 @@ const shortModel = (id: string) => {
 };
 
 const pctColor = (p: number) => (p >= 80 ? "red" : p >= 50 ? "yellow" : "gray");
-const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const MAX_ITEMS = 400;
 
 /** Commands this app answers itself (Claude Code's own menus aren't available through the SDK). */
@@ -96,7 +95,7 @@ export type ChatProps = {
   width: number;
   /** Each pane's own border: color and line style. */
   paneColor: string;
-  paneBorder: "round" | "bold" | "double" | "single";
+  paneBorder: any;
   /** Bump n to re-read the plan usage now (the ⟳ on the Usage card). */
   limitsRequest?: { n: number };
   index: number;
@@ -122,6 +121,8 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
   const themeApi = useThemeApi();
   const keysApi = useKeys();
   const [items, setItems] = useState<Item[]>([]);
+  /** Whether this pane opened an earlier conversation (the resume prop can arrive later). */
+  const [resumedAtStart] = useState(() => !!resume);
   /** Ctrl+E: show every tool call instead of one summary line per group. */
   const [verbose, setVerbose] = useState(false);
   useEffect(() => {
@@ -450,7 +451,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
     const rows = THEMES.map((th) => ({
       id: th.id,
       label: th.name,
-      detail: th.bg ? "" : "uses your terminal's background",
+      detail: describeSkin(th),
       color: "gray",
       swatch: [th.bg ?? th.black, th.white, th.cyan, th.green, th.yellow, th.red, th.magenta],
     }));
@@ -678,11 +679,15 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
 
   const modeInfo = MODE_LABEL[mode] ?? { text: mode, color: t.gray };
   const elapsed = busy ? Math.floor((Date.now() - startedAt) / 1000) : 0;
-  const sep = <Text color={t.gray}> │ </Text>;
   const up = Math.min(scrollUp, maxScroll);
   // Inner width of the panel (the transcript fills it), and room for a reply after the "⏺ " marker.
   const inner = Math.max(20, view.width || 80);
   const accent = paneColor;
+  const sk = skinOf(t);
+  const SEP = { pipes: " │ ", dots: " · ", slashes: " / ", brackets: "] [", blocks: " ▍ " }[sk.status];
+  const sep = <Text color={sk.status === "blocks" ? accent : t.gray}>{SEP}</Text>;
+  const open = sk.status === "brackets" ? <Text color={t.gray}>[</Text> : null;
+  const close = sk.status === "brackets" ? <Text color={t.gray}>]</Text> : null;
   const rule = <Text color={t.border}>{ruleOf(t, inner)}</Text>;
 
   return (
@@ -723,7 +728,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
                 return m + (dir.length > room ? "…" + dir.slice(dir.length - room + 1) : dir);
               })()}
             </Text>
-            {resume && <Text color={t.gray}>Loading conversation…</Text>}
+            {resumedAtStart && <Text color={t.gray}>Loading conversation…</Text>}
           </Box>
         )}
         {toBlocks(items).map((b, i, all) => {
@@ -746,7 +751,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
                   {rest.length > 0 && (
                     <Text wrap="truncate" color={t.gray}>
                       <Text color={running && !workflowOf(last) ? t.yellow : restErrors ? t.red : t.gray}>
-                        {running && !workflowOf(last) ? "◌ " : "◦ "}
+                        {(running && !workflowOf(last) ? sk.tool[1] : sk.tool[0]) + " "}
                       </Text>
                       {running && !workflowOf(last) ? last.text : summarize(rest)}
                       {restErrors > 0 && <Text color={t.red}>{"  "}{restErrors} failed</Text>}
@@ -763,7 +768,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
               <Box key={"g" + b.id} flexShrink={0} flexDirection="column">
                 {b.calls.map((c, k) => (
                   <Box key={k} flexDirection="column">
-                    <Text wrap="truncate" color={t.white}><Text color={c.isError ? t.red : t.green}>◦ </Text>{c.text}</Text>
+                    <Text wrap="truncate" color={t.white}><Text color={c.isError ? t.red : t.green}>{sk.tool[0]} </Text>{c.text}</Text>
                     {c.result !== undefined && (
                       <Text wrap="truncate" color={c.isError ? t.red : t.gray}>{"  ⎿ "}{c.result}</Text>
                     )}
@@ -790,11 +795,42 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
             const next = all[i + 1];
             const nextIsText = !!next && next.kind !== "tools" && next.item.kind === "text";
             const time = it.at ? new Date(it.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "";
+            const mb = nextIsText ? 0 : 1;
+            const head = <Text bold color={bar === t.gray ? t.gray : accent}>{label}{time && <Text color={t.gray} bold={false}>{"  ·  " + time}</Text>}</Text>;
+            // The theme decides how prompts look (Skin.you).
+            if (sk.you === "quote") {
+              return (
+                <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={mb} width={inner} flexDirection="row">
+                  <Box width={2} flexShrink={0}><Text color={bar}>┃</Text></Box>
+                  <Box flexDirection="column" flexGrow={1}>{head}<Text italic color={t.white}>{shown}</Text></Box>
+                </Box>
+              );
+            }
+            if (sk.you === "echo") {
+              return (
+                <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={mb} width={inner} flexDirection="row">
+                  <Box flexGrow={1}><Text bold color={t.white}><Text color={bar}>{wf ? "⇄ " : sk.prompt + " "}</Text>{shown}</Text></Box>
+                  {(time || wf) && <Text color={t.gray}>{" " + (wf ? label.replace("⇄ ", "") + (time ? " " : "") : "") + time}</Text>}
+                </Box>
+              );
+            }
+            if (sk.you === "bubble" || sk.you === "card") {
+              const bubble = sk.you === "bubble";
+              return (
+                <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={mb} width={inner} flexDirection="row" justifyContent={bubble ? "flex-end" : "flex-start"}>
+                  <Box flexDirection="column" width={bubble ? Math.max(24, Math.floor(inner * 0.8)) : inner} paddingX={1}
+                    backgroundColor={bubble ? band : undefined} borderStyle={bubble ? undefined : frameOf(t)} borderColor={bar} borderBackgroundColor={t.bg}>
+                    {head}
+                    <Text bold color={t.white}>{shown}</Text>
+                  </Box>
+                </Box>
+              );
+            }
             return (
-              <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={nextIsText ? 0 : 1} width={inner} flexDirection="row" backgroundColor={band}>
+              <Box key={it.id} flexShrink={0} marginTop={gap} marginBottom={mb} width={inner} flexDirection="row" backgroundColor={band}>
                 <Box width={1} flexShrink={0} flexDirection="column" backgroundColor={bar} />
                 <Box flexDirection="column" flexGrow={1} paddingX={1} backgroundColor={band}>
-                  <Text bold color={bar === t.gray ? t.gray : accent}>{label}{time && <Text color={t.gray} bold={false}>{"  ·  " + time}</Text>}</Text>
+                  {head}
                   <Text bold color={t.white}>{shown}</Text>
                 </Box>
               </Box>
@@ -827,13 +863,13 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
       )}
       {busy && !pending && (
         <Box flexShrink={0}>
-          <Text color={accent}>{SPINNER[tick % SPINNER.length]} </Text>
+          <Text color={accent}>{sk.spinner[tick % sk.spinner.length]} </Text>
           <Text color={t.gray}>working · {elapsed}s · esc to stop</Text>
         </Box>
       )}
 
       {pending && (
-        <Box flexShrink={0} flexDirection="column" borderStyle="round" backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, t.yellow)} paddingX={1}>
+        <Box flexShrink={0} flexDirection="column" borderStyle={frameOf(t)} backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, t.yellow)} paddingX={1}>
           <Text bold color={t.white}>Allow {describeTool(pending.toolName, pending.input)}?</Text>
           {pending.toolName === "ExitPlanMode" && typeof pending.input.plan === "string" && (
             <Text color={t.white}>{pending.input.plan}</Text>
@@ -848,7 +884,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
       )}
 
       {menu && (
-        <Box flexShrink={0} flexDirection="column" borderStyle="round" backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, t.cyan)} paddingX={1}>
+        <Box flexShrink={0} flexDirection="column" borderStyle={frameOf(t)} backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, t.cyan)} paddingX={1}>
           <Text bold color={t.cyan}>{menu.title}</Text>
           {(() => {
             // Name column fits the longest name; long menus scroll around the selection.
@@ -898,7 +934,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
       <Box flexShrink={0} flexDirection="column">
         {rule}
         <Text color={t.white}>
-          <Text bold color={listening ? t.red : active && !pending ? accent : t.gray}>{listening ? "● " : "› "}</Text>
+          <Text bold color={listening ? t.red : active && !pending ? accent : t.gray}>{listening ? "● " : sk.prompt + " "}</Text>
           {input}
           {listening && <Text color={accent}>{input && heard ? " " : ""}{heard || (input ? "" : "listening…")}</Text>}
           {active && <Text inverse color={t.white}> </Text>}
@@ -907,6 +943,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
         </Text>
         {rule}
         <Text wrap="truncate" color={t.white}>
+          {open}
           {!isClaude && <Text color={accent}>{info.glyph} {info.short} </Text>}
           <Text bold color={t.white}>{model ? shortModel(model) : "…"}</Text>
           {ctxPct != null && (
@@ -925,6 +962,7 @@ export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, 
           {sep}
           <Text bold color={paint(t, modeInfo.color)}>{modeInfo.text}</Text>
           <Text color={t.gray}> (shift+tab)</Text>
+          {close}
           {!mouseOn && <Text color={t.yellow}>  mouse off ({pretty(keysApi.keys.mouse)})</Text>}
         </Text>
       </Box>

@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import { runBrowser } from "./mcp.js";
-import { useTheme , bc, ruleOf } from "./theme.js";
+import { useTheme , bc, ruleOf, frameOf } from "./theme.js";
 import { useKeys, pretty } from "./keys.js";
 import { tidy } from "./transcript.js";
 
@@ -144,7 +144,7 @@ export function Browser(props: {
   );
 
   return (
-    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle="round"
+    <Box flexDirection="column" width={width} height={height} flexShrink={0} backgroundColor={t.bg} borderStyle={frameOf(t)}
       borderBackgroundColor={t.bg} borderColor={bc(t, focused ? accent : t.border)} paddingX={1}>
       <Text wrap="truncate" color={t.white}>
         <Text color={error ? t.red : t.green}>{error ? "○ " : "● "}</Text>
@@ -161,7 +161,7 @@ export function Browser(props: {
         })}
       </Box>
       <Text wrap="truncate" color={error ? t.red : busy ? t.yellow : t.gray}>{busy ? "⠿ " : ""}{status}</Text>
-      <Box borderStyle="round" backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, focused ? t.white : t.border)} paddingX={1}>
+      <Box borderStyle={frameOf(t)} backgroundColor={t.card} borderBackgroundColor={t.card ?? t.bg} borderColor={t.card ?? bc(t, focused ? t.white : t.border)} paddingX={1}>
         <Text wrap="truncate" color={t.white}>
           {"→ "}
           {input}

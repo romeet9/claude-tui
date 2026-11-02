@@ -39,7 +39,7 @@
 - **Usage that follows focus.** Click a pane and the Usage card shows that agent's 5-hour and weekly limits.
 - **Permission prompts that stay out of the way.** <kbd>y</kbd> / <kbd>a</kbd> / <kbd>n</kbd> for Claude and Codex approvals; <kbd>Shift</kbd> <kbd>Tab</kbd> changes the mode and the status line updates instantly.
 - **GitHub in reach.** <kbd>Ctrl</kbd> <kbd>T</kbd> opens your GitHub activity, PRs, issues and CI beside the panes; <kbd>Ctrl</kbd> <kbd>G</kbd> drives your real Chrome through Browser MCP.
-- **Made for the terminal.** Brand-colored pane tags, pixel agent icons, 12 themes (`/theme`), rebindable keys (`/keys`), mouse support and voice typing (<kbd>Ctrl</kbd> <kbd>V</kbd>, macOS speech recognition).
+- **Made for the terminal.** Brand-colored pane tags, pixel agent icons, 32 themes (`/theme`), 20 of them with their own UI style: frames, titles, tags, prompt marker, how your prompts appear, status line, rebindable keys (`/keys`), mouse support and voice typing (<kbd>Ctrl</kbd> <kbd>V</kbd>, macOS speech recognition).
 
 ## 📥 Install
 

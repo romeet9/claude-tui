@@ -2,7 +2,7 @@
 // colored by how much is used, with the time until each resets.
 import React from "react";
 import { Box, Text } from "ink";
-import { useTheme , bc, ruleOf } from "./theme.js";
+import { useTheme , bc, ruleOf, frameOf, titleOf } from "./theme.js";
 
 export type Limit = { pct: number; resetsAt?: number };
 /** "none": the plan has no such limit (Claude Ultra has no 5-hour window). */
@@ -42,7 +42,8 @@ export function Usage({ limits, width, refreshing, sourceColor }: { limits: Limi
   const t = useTheme();
   const inner = width - 4;
   // Whose plan: the focused pane's agent (CLAUDE, CODEX, AGY Gemini…), clipped to the title row.
-  const room = Math.max(0, inner - 5 - 3 - 1 - REFRESH_LABEL.length);
+  const label = titleOf(t, "Usage");
+  const room = Math.max(0, inner - label.length - 3 - 1 - REFRESH_LABEL.length);
   const source = limits.source ? (limits.source.length > room ? limits.source.slice(0, Math.max(0, room - 1)) + "…" : limits.source) : "";
   const barW = Math.max(6, inner - 13);
   const color = (p: number) => (p >= 80 ? t.red : p >= 50 ? t.yellow : t.green);
@@ -75,15 +76,15 @@ export function Usage({ limits, width, refreshing, sourceColor }: { limits: Limi
   };
 
   return (
-    <Box flexDirection="column" width={width} height={USAGE_HEIGHT} flexShrink={0} backgroundColor={t.bg} borderStyle="round"
+    <Box flexDirection="column" width={width} height={USAGE_HEIGHT} flexShrink={0} backgroundColor={t.bg} borderStyle={frameOf(t)}
       borderBackgroundColor={t.bg} borderColor={bc(t, t.border)} paddingX={1}>
       <Box flexShrink={0} flexDirection="column">
         <Text wrap="truncate" color={t.white}>
-          <Text bold color={t.white}>Usage</Text>
+          <Text bold color={t.white}>{label}</Text>
           {source && <Text color={t.gray}>{" · "}</Text>}
           {source && <Text bold color={sourceColor ?? t.white}>{source}</Text>}
           {/* The ⟳ sits on the last column of the title row; clicking it refreshes (see app.tsx). */}
-          <Text color={t.gray}>{" ".repeat(Math.max(1, inner - 5 - (source ? 3 + source.length : 0) - REFRESH_LABEL.length))}</Text>
+          <Text color={t.gray}>{" ".repeat(Math.max(1, inner - label.length - (source ? 3 + source.length : 0) - REFRESH_LABEL.length))}</Text>
           <Text bold color={refreshing ? t.cyan : t.white}>{refreshing ? "↻ …".padEnd(REFRESH_LABEL.length) : REFRESH_LABEL}</Text>
         </Text>
         <Text color={t.border}>{ruleOf(t, inner)}</Text>

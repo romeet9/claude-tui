@@ -19,7 +19,7 @@ const TIMELINE = hasTimeline();
 import { GitHubPanel } from "./GitHub.js";
 import { Usage, USAGE_HEIGHT, REFRESH_LABEL, type Limits } from "./Usage.js";
 import { Browser, BROWSER_BODY_TOP } from "./Browser.js";
-import { ThemeContext, themeById, savedThemeId, saveThemeId, Surface, sectionTheme, chatTheme, type ThemeApi } from "./theme.js";
+import { ThemeContext, themeById, savedThemeId, saveThemeId, Surface, sectionTheme, chatTheme, skinOf, paneFrameOf, type ThemeApi } from "./theme.js";
 import { Sidebar, buildRows, rowPath, sidebarWindow, LIST_TOP, sessionTitle } from "./Sidebar.js";
 import { mouse, installMouseFilter, setMouseReporting, isMouseReporting, type MouseEvent } from "./mouse.js";
 import {
@@ -41,7 +41,8 @@ type Pane = {
 
 // Every new pane gets its own border: line styles and theme colors cycle with the pane's number.
 const BORDERS = ["round", "bold", "double", "single"] as const;
-const paneBorder = (id: number) => BORDERS[id % BORDERS.length];
+/** Each pane's frame: cycled styles, or the theme's own frame (see Skin.paneFrames). */
+const paneBorder = (t: Theme, id: number) => paneFrameOf(t, id);
 /** Each pane's accent is its agent's brand color (Claude orange, Codex white, Antigravity blue). */
 function paneColor(t: Theme, p: { id: number; agent: AgentKind; choosing?: boolean }) {
   if (t.chatBlocks && t.blocks) return t.blocks.ink; // block themes: dark ink borders on each chat's block
@@ -265,8 +266,8 @@ function App() {
   const sidebarVisibleNow = showSidebar && columns - rightWidth - SIDEBAR_WIDTH >= 50;
   // Spacing between sections: block themes get real gaps of canvas (2 columns side by
   // side, 1 row between stacked sections); line themes sit their borders 1 column apart.
-  const GAP = theme.blocks ? 2 : 1;
-  const VGAP = theme.blocks ? 1 : 0;
+  const GAP = theme.blocks ? 2 : skinOf(theme).gap;
+  const VGAP = theme.blocks || skinOf(theme).gap > 1 ? 1 : 0;
   const leftW = sidebarVisibleNow ? SIDEBAR_WIDTH + GAP : 0;
   const gridW = Math.max(MIN_PANE_W, columns - leftW - (right ? rightWidth + GAP : 0));
   const rects = gridRects(panes.length, gridW, height, GAP, VGAP, split);
@@ -729,18 +730,18 @@ function App() {
         {p.choosing ? (
         <AgentPicker key={"pick-" + p.id} cwd={p.cwd} width={rects[i].w} height={rects[i].h}
           active={focus === "chat" && i === ai} cursor={i === ai ? pickCursor : -1} index={i} count={panes.length}
-          paneColor={paneColor(theme, p)} paneBorder={paneBorder(p.id)} />
+          paneColor={paneColor(theme, p)} paneBorder={paneBorder(theme, p.id)} />
       ) : p.paused ? (
         <PausedPane key={"paused-" + p.id} cwd={p.cwd} width={rects[i].w} height={rects[i].h} agent={p.agent} title={paneTitle(p)}
           active={focus === "chat" && i === ai} index={i} count={panes.length} hasSession={!!(p.sessionId ?? p.resume)}
-          paneColor={paneColor(theme, p)} paneBorder={paneBorder(p.id)} resumeKey={pretty(keymap.pausePane)} />
+          paneColor={paneColor(theme, p)} paneBorder={paneBorder(theme, p.id)} resumeKey={pretty(keymap.pausePane)} />
       ) : (
         <Chat
           agent={p.agent}
           title={paneTitle(p)}
           onTitle={(text) => setPanes((list) => list.map((q) => (q.id === p.id && !q.title ? { ...q, title: text } : q)))}
           paneColor={paneColor(theme, p)}
-          paneBorder={paneBorder(p.id)}
+          paneBorder={paneBorder(theme, p.id)}
           limitsRequest={i === ai ? limitsRequest : undefined}
           key={p.id}
           cwd={p.cwd}
