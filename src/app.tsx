@@ -681,10 +681,12 @@ function App() {
         </Box>
       )}
       {/* The bento grid of chat panes (see grid.ts), then the right column. */}
-      <Box width={gridW} height={height} flexShrink={0} flexDirection="column" rowGap={VGAP}>
-      {Array.from(new Set(rects.map((r) => r.row))).map((row) => (
-        <Box key={"row" + row} flexDirection="row" columnGap={GAP} width={gridW} height={rects.find((r) => r.row === row)!.h} flexShrink={0}>
-      {panes.map((p, i) => ({ p, i })).filter(({ i }) => rects[i]?.row === row).map(({ p, i }) => (
+      {/* One wrapping container, every pane a direct child keyed by its id: a pane that moves
+          to another row (e.g. after closing others) keeps its session. Per-row containers
+          made React remount it, which dropped the transcript and started a new session.
+          Each row's widths plus gaps add up to gridW exactly, so rows break where grid.ts says. */}
+      <Box width={gridW} height={height} flexShrink={0} flexDirection="row" flexWrap="wrap" columnGap={GAP} rowGap={VGAP} alignContent="flex-start">
+      {panes.map((p, i) => ({ p, i })).map(({ p, i }) => (
         <Surface key={"s" + p.id} api={themeApi} theme={chatTheme(theme, p.id)}>
         {p.choosing ? (
         <AgentPicker key={"pick-" + p.id} cwd={p.cwd} width={rects[i].w} height={rects[i].h}
@@ -704,7 +706,8 @@ function App() {
           limitsRequest={i === ai ? limitsRequest : undefined}
           key={p.id}
           cwd={p.cwd}
-          resume={p.resume}
+          // A pane that ever gets rebuilt picks its own conversation back up.
+          resume={p.resume ?? p.sessionId ?? undefined}
           width={rects[i].w}
           index={i}
           count={panes.length}
@@ -725,8 +728,6 @@ function App() {
         />
         )}
         </Surface>
-      ))}
-        </Box>
       ))}
       </Box>
       {right === "timeline" && (
