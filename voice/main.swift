@@ -145,6 +145,19 @@ func start() {
     }
     _ = recognizer
     let input = engine.inputNode
+    // Apple's voice processing (as in FaceTime): cancels whatever this Mac is playing
+    // (a YouTube video, music) and suppresses background noise, so only your voice is
+    // transcribed. Other audio is barely lowered while listening.
+    do {
+        try input.setVoiceProcessingEnabled(true)
+        if #available(macOS 14.0, *) {
+            input.voiceProcessingOtherAudioDuckingConfiguration =
+                AVAudioVoiceProcessingOtherAudioDuckingConfiguration(enableAdvancedDucking: false, duckingLevel: .min)
+        }
+    } catch {
+        // Not fatal: dictation still works, just without echo and noise suppression.
+    }
+    // Read the format after enabling voice processing: it changes the input format.
     let format = input.outputFormat(forBus: 0)
     // The tap runs on an audio thread; hop to main so `request` is never read mid-swap.
     input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
