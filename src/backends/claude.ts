@@ -24,7 +24,10 @@ export class ClaudeSession implements AgentSession {
         // Stated explicitly so the status line and the session agree from the first frame.
         permissionMode: opts.mode,
         // Behave like Claude Code: its system prompt, CLAUDE.md files, settings, hooks, plugins.
-        systemPrompt: { type: "preset", preset: "claude_code" },
+        systemPrompt: { type: "preset", preset: "claude_code", ...(opts.extra?.appendSystemPrompt ? { append: opts.extra.appendSystemPrompt } : {}) },
+        ...(opts.extra?.mcpServers ? { mcpServers: opts.extra.mcpServers as any } : {}),
+        // Tools the workflow pre-approves (e.g. its own status tools); everything else still asks.
+        ...(opts.extra?.allowedTools ? { allowedTools: opts.extra.allowedTools } : {}),
         settingSources: ["user", "project", "local"],
         includePartialMessages: true,
         // This UI has no multiple-choice dialog; the model asks in plain text instead.

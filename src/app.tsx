@@ -8,6 +8,7 @@ import { PausedPane } from "./PausedPane.js";
 import { AgentPicker, PICKER_FIRST_ROW, PICKER_ROW_STEP } from "./AgentPicker.js";
 import { AGENTS, agentInfo, type AgentKind } from "./backends/types.js";
 import { gridRects, neighbor, hit, MIN_PANE_W } from "./grid.js";
+import { loadWorkflow, workflowArg, type Chip, type WorkflowApi } from "./workflow.js";
 import { loadLayout, saveLayout, flushLayout, type SavedLayout } from "./layout.js";
 import { KeysContext, loadKeymap, saveKeymap, describe, pretty, DEFAULT_KEYS, type KeysApi, type Keymap } from "./keys.js";
 import type { Theme } from "./theme.js";
@@ -34,6 +35,8 @@ type Pane = {
   agent: AgentKind; choosing?: boolean;
   /** The session's name when the agent hasn't listed one yet (first prompt, or the sidebar row). */
   title?: string;
+  /** Workflow panes: the role the workflow addresses them by. */
+  role?: string;
 };
 
 // Every new pane gets its own border: line styles and theme colors cycle with the pane's number.
@@ -73,7 +76,14 @@ function agentArg(argv: string[]): AgentKind | undefined {
 }
 const ARGS = startupArgs(process.argv.slice(2));
 /** The layout from last time, unless --fresh. */
-const SAVED: SavedLayout | null = ARGS.fresh ? null : loadLayout();
+/** --workflow <name>: a private module's linked panes (see workflow.ts). */
+const WF_NAME = workflowArg(process.argv.slice(2));
+const WORKFLOW = WF_NAME ? await loadWorkflow(WF_NAME).catch((e) => {
+  console.error(String(e?.message ?? e));
+  process.exit(1);
+}) : null;
+/** A workflow brings its own panes, so the saved layout is neither read nor written. */
+const SAVED: SavedLayout | null = ARGS.fresh || WORKFLOW ? null : loadLayout();
 process.on("exit", flushLayout);
 type Field = { purpose: "create" | "link"; label: string; value: string };
 
@@ -118,6 +128,14 @@ function App() {
   // Restore last time's panes (their sessions resume); otherwise one pane where we started.
   // A launch folder without a pane gets one, added at the end and focused.
   const [initial] = useState(() => {
+    if (WORKFLOW) {
+      return {
+        panes: WORKFLOW.panes.map((w, i) => ({
+          id: i, cwd: w.cwd, resume: w.resume, sessionId: null, agent: w.agent ?? "claude", role: w.role, title: w.title,
+        })) as Pane[],
+        active: 0,
+      };
+    }
     if (!SAVED) return { panes: [{ id: 0, cwd: launchCwd, resume: ARGS.resume, sessionId: null, agent: ARGS.agent ?? "claude" }] as Pane[], active: 0 };
     const list: Pane[] = SAVED.panes.map((s, i) => ({
       id: i, cwd: s.cwd, sessionId: s.sessionId, resume: s.sessionId ?? undefined, width: s.width, paused: s.paused,
@@ -412,8 +430,27 @@ function App() {
   }
 
   /** The picker's choice: the pane starts that agent. */
+  // ---- workflow: per-role chips/banners, prompts to send, and callbacks ----
+  const [wfUi, setWfUi] = useState<Record<string, { status?: Chip; banner?: Chip }>>({});
+  const [wfInject, setWfInject] = useState<Record<string, string[]>>({});
+  const wfCallbacks = React.useRef({ session: [] as ((r: string, id: string) => void)[], turn: [] as ((r: string) => void)[] });
+  useEffect(() => {
+    if (!WORKFLOW?.start) return;
+    const api: WorkflowApi = {
+      setStatus: (role, chip) => setWfUi((u) => ({ ...u, [role]: { ...u[role], status: chip } })),
+      setBanner: (role, banner) => setWfUi((u) => ({ ...u, [role]: { ...u[role], banner } })),
+      send: (role, text) => setWfInject((q) => ({ ...q, [role]: [...(q[role] ?? []), text] })),
+      onSession: (cb) => { wfCallbacks.current.session.push(cb); },
+      onTurnDone: (cb) => { wfCallbacks.current.turn.push(cb); },
+    };
+    const stop = WORKFLOW.start(api);
+    return () => { if (typeof stop === "function") stop(); };
+  }, []);
+  const wfPane = (p: Pane) => (p.role ? WORKFLOW?.panes.find((w) => w.role === p.role) : undefined);
+
   /** The title bar's name: the agent's own title from the session list, else the first prompt. */
   function paneTitle(p: Pane): string {
+    if (p.role && p.title) return p.title;
     const id = p.sessionId || p.resume;
     const listed = id ? sessions[p.cwd]?.find((x) => x.sessionId === id) : undefined;
     const name = (listed ? sessionTitle(listed) : "") || p.title;
@@ -493,6 +530,7 @@ function App() {
 
   // Keep the layout for next time: written shortly after each change, and on quit.
   useEffect(() => {
+    if (WORKFLOW) return;
     saveLayout({
       version: 1,
       panes: panes.map((p) => ({
@@ -713,8 +751,18 @@ function App() {
           count={panes.length}
           active={focus === "chat" && i === ai}
           height={rects[i].h}
-          onSessionId={(id) => setPanes((list) => list.map((q) => (q.id === p.id ? { ...q, sessionId: id } : q)))}
-          onTurnDone={() => reloadSessions(p.cwd)}
+          onSessionId={(id) => {
+            setPanes((list) => list.map((q) => (q.id === p.id ? { ...q, sessionId: id } : q)));
+            if (p.role) for (const cb of wfCallbacks.current.session) cb(p.role, id);
+          }}
+          onTurnDone={() => {
+            reloadSessions(p.cwd);
+            if (p.role) for (const cb of wfCallbacks.current.turn) cb(p.role);
+          }}
+          extra={wfPane(p) ? { appendSystemPrompt: wfPane(p)!.appendSystemPrompt, mcpServers: wfPane(p)!.mcpServers, allowedTools: wfPane(p)!.allowedTools } : undefined}
+          chip={p.role ? wfUi[p.role]?.status : undefined}
+          banner={p.role ? wfUi[p.role]?.banner : undefined}
+          inject={p.role ? wfInject[p.role] : undefined}
           onQuit={quit}
           onLimits={setLimits}
           prefill={i === ai ? chatPrefill : undefined}

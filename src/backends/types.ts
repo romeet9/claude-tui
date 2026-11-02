@@ -80,6 +80,8 @@ export type StartOptions = {
   mode: PermissionMode;
   resume?: string;
   onPermission: (p: PendingPermission) => void;
+  /** Claude only (workflows): extra instructions and MCP servers for this pane. */
+  extra?: { appendSystemPrompt?: string; mcpServers?: Record<string, unknown>; allowedTools?: string[] };
 };
 
 /** An async queue: producers push, the UI's for-await reads. */

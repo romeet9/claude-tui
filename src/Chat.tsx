@@ -82,6 +82,12 @@ export type ChatProps = {
   title: string;
   /** The first prompt of a new session, to name it until the agent's own title arrives. */
   onTitle: (text: string) => void;
+  /** Workflows: extra instructions/tools, a status chip, a banner line, and prompts to send. */
+  extra?: { appendSystemPrompt?: string; mcpServers?: Record<string, unknown>; allowedTools?: string[] };
+  chip?: { text: string; color?: string } | null;
+  banner?: { text: string; color?: string } | null;
+  /** Every prompt the workflow sent this pane, in order (append-only). */
+  inject?: string[];
   resume?: string;
   /** Keyboard goes to the chat (false while the sidebar has focus). */
   active: boolean;
@@ -110,7 +116,7 @@ export type ChatProps = {
   mouseOn: boolean;
 };
 
-export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneColor, paneBorder, limitsRequest, index, count, height, onSessionId, onTurnDone, onQuit, onNewSession, onFocusSidebar, scrollRequest, mouseOn, onLimits, prefill }: ChatProps) {
+export function Chat({ cwd, agent, title, onTitle, extra, chip, banner, inject, resume, active, width, paneColor, paneBorder, limitsRequest, index, count, height, onSessionId, onTurnDone, onQuit, onNewSession, onFocusSidebar, scrollRequest, mouseOn, onLimits, prefill }: ChatProps) {
   const t = useTheme();
   const themeApi = useThemeApi();
   const keysApi = useKeys();
@@ -162,7 +168,7 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
   const info = agentInfo(agent);
   const isClaude = agent === "claude";
   const session = useMemo(
-    () => startAgent(agent, { cwd, resume, mode: modeRef.current, onPermission: (p) => setPending(p) }),
+    () => startAgent(agent, { cwd, resume, mode: modeRef.current, onPermission: (p) => setPending(p), extra }),
     [],
   );
 
@@ -301,6 +307,21 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
       }
     }
   }
+
+  // Workflow prompts: sent when the pane is idle, queued while it works.
+  const injectQueue = useRef<string[]>([]);
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const injected = useRef(0);
+  useEffect(() => {
+    if (!inject || inject.length <= injected.current) return;
+    injectQueue.current.push(...inject.slice(injected.current));
+    injected.current = inject.length;
+    if (!busyRef.current && !pending) submit(injectQueue.current.shift(), true);
+  }, [inject?.length]);
+  useEffect(() => {
+    if (!busy && !pending && injectQueue.current.length) submit(injectQueue.current.shift(), true);
+  }, [busy, pending]);
 
   useEffect(() => {
     if (!busy) return;
@@ -497,10 +518,13 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
     }
   }
 
-  function submit(override?: string) {
+  /** keepDraft: a workflow message is sent without touching what you're typing. */
+  function submit(override?: string, keepDraft = false) {
     const text = (override ?? input).trim();
-    setInput("");
-    setSugCursor(0);
+    if (!keepDraft) {
+      setInput("");
+      setSugCursor(0);
+    }
     if (!text) return;
     if (text === "/exit" || text === "/quit") return onQuit();
     if (text === "/new" || text === "/clear") return onNewSession();
@@ -643,9 +667,14 @@ export function Chat({ cwd, agent, title, onTitle, resume, active, width, paneCo
       {/* Header, like the sidebar and right panels: title, then a divider. */}
       <Box flexShrink={0} flexDirection="column">
         <PaneTitle agent={agent} name={title} active={active} accent={accent}
-          status={pending && !active ? { text: "needs approval", color: t.yellow } : busy && !active ? { text: "working", color: t.gray } : undefined}
+          status={pending && !active ? { text: "needs approval", color: t.yellow } : chip ? { text: chip.text, color: chip.color ? paint(t, chip.color) : accent } : busy && !active ? { text: "working", color: t.gray } : undefined}
           details={path.basename(cwd) + (branch ? " ▸ " + branch : "")}
           icon={{ text: "✕", color: busy ? t.red : t.gray }} />
+        {banner && (
+          <Box flexShrink={0} height={1} overflow="hidden">
+            <Text wrap="truncate" color={banner.color ? paint(t, banner.color) : t.gray}>{banner.text}</Text>
+          </Box>
+        )}
         {rule}
       </Box>
 
