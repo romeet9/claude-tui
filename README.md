@@ -41,7 +41,25 @@
 - **GitHub + memory, in reach.** <kbd>Ctrl</kbd> <kbd>T</kbd> opens your GitHub activity, PRs, issues and CI next to a Supermemory timeline; <kbd>Ctrl</kbd> <kbd>G</kbd> drives your real Chrome through Browser MCP.
 - **Made for the terminal.** Brand-colored pane tags, pixel agent icons, 12 themes (`/theme`), rebindable keys (`/keys`), mouse support and voice typing (<kbd>Ctrl</kbd> <kbd>V</kbd>, macOS speech recognition).
 
-## 🚀 Getting started
+## 📥 Install
+
+One line, on an Apple Silicon Mac. No Node or npm needed: the release carries its own runtime and the Claude engine.
+
+```bash
+curl -fsSL https://github.com/romeet9/claude-tui/releases/latest/download/install.sh | bash
+```
+
+Then run `claude-tui` in any project folder, or `claude-tui demo` for a tour with made-up data.
+It installs to `~/.claude-tui` and links `~/.local/bin/claude-tui`; to uninstall, delete both.
+
+| To use | You need |
+| --- | --- |
+| Claude | Nothing extra; sign in once with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) (or set `ANTHROPIC_API_KEY`) |
+| Codex | The [Codex CLI](https://github.com/openai/codex), signed in (`codex login`) |
+| Antigravity | The Antigravity CLI (`agy`), signed in |
+| GitHub panel | The [GitHub CLI](https://cli.github.com) (`gh auth login`) |
+
+## 🛠️ From source
 
 **Requirements:** macOS, Node 20+, and the agent CLIs you want to use, signed in:
 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) · [Codex](https://github.com/openai/codex) · Antigravity (`agy`).
@@ -103,6 +121,15 @@ Every shortcut can be changed with `/keys`.
 | [`src/demo.ts`](./src/demo.ts) | Demo mode: made-up data and scripted replies |
 | [`voice/main.swift`](./voice/main.swift) | Speech-to-text helper, compiled on first use |
 | [`scripts/record-demo.py`](./scripts/record-demo.py) | Records `docs/demo.gif` from the real UI |
+
+## 📦 Building a release
+
+```bash
+scripts/build-release.sh    # release/claude-tui-<version>-macos-arm64.tar.gz + install.sh
+gh release create v1.0.0 release/*
+```
+
+The build bundles the app with esbuild, adds the official Node runtime (checksum-verified) and the prebuilt voice helper.
 
 ## 🎬 Re-recording the demo
 

@@ -6,7 +6,8 @@
     "start": "tsx src/app.tsx",
     "demo": "node scripts/demo.mjs",
     "record-demo": "python3 scripts/record-demo.py",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build-release": "scripts/build-release.sh"
   },
   "keywords": [
     "claude",
@@ -33,6 +34,7 @@
     "@types/marked-terminal": "^6.1.1",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
+    "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
